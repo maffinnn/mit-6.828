@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Backtrace the kernel stack", mon_backtrace },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -58,10 +59,65 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	/*            
+				STACK
+	  +--   +~~~~~~~~~~~~~~~+
+	  |	    |          		|
+	  |		|           	|
+	Caller	+---------------+		
+	Frame	|  Arguments	|
+	  |		+---------------+		
+	  |		|Return Address | <-- saved %eip value (the instruction right after call instruction in the caller)
+	  +--   +---------------+
+			|	Old %ebp	| <-- %ebp
+			+---------------+
+			|				|
+			|Saved Registers|
+			|		+		|   
+			|Local Variables|
+			|				| 
+			+---------------+		
+			|Argument Build	|
+			+~~~~~~~~~~~~~~~+ <-- %esp
+	*/
+	uint32_t* ebp = (uint32_t*) read_ebp();
+
+	cprintf("Stack backtrace:\n");
+	// while loop的返回条件：
+	// 		在entry.S中， 
+	//				movl  $0x0,%ebp  # nuke frame pointer
+	while(ebp)
+	{	
+		uint32_t eip = *(ebp+1);
+		struct Eipdebuginfo info; 
+		debuginfo_eip(eip, &info);
+		
+		cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",ebp, eip,
+			*(ebp+2), *(ebp+3), *(ebp+4), *(ebp+5), *(ebp+6));
+		
+		cprintf("\t%s:%d: %.*s+%d\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, eip-info.eip_fn_addr);
+		
+		//*ebp 取%ebp指向的old ebp值是一个地址 再强转成指针而类型
+		ebp = (uint32_t*)*ebp; 
+	}
+	
 	return 0;
 }
 
+// Test the stack backtrace function (lab 1 only)
+void 
+test_backtrace(int x)
+{
+	cprintf("entering test_backtrace %d\n", x);
 
+	if (x>0)
+		test_backtrace(x-1);
+	else
+		mon_backtrace(0, 0, 0);
+
+	cprintf("leaving test_backtrace %d\n", x);
+
+}
 
 /***** Kernel monitor command interpreter *****/
 
@@ -114,7 +170,17 @@ monitor(struct Trapframe *tf)
 
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
+	// 一开始不清楚要怎样测试required的代码 还在printf.c里写了main函数但是编译器报错找不到头文件
+	// 参考了clann24/jos/lab1的implementation
+	// 可以将要测试的cprintf的代码放在这里运行(GREAT IDEA!!学习了!!)
+	int x =1, y =3, z = 4; // inserted
+	cprintf("x %d, y %x, z %d\n", x, y, z); // inserted
+	unsigned int i = 0x00646c72; // inserted
+	cprintf("H%x Wo%s\n", 57616, &i); // inserted
+	cprintf("x=%d y=%d\n", 3); // inserted
 
+	// 测试
+	mon_backtrace(0, 0, 0);
 
 	while (1) {
 		buf = readline("K> ");

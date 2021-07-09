@@ -38,7 +38,7 @@ void readseg(uint32_t, uint32_t, uint32_t);
 void
 bootmain(void)
 {
-	struct Proghdr *ph, *eph;
+	struct Proghdr *ph, *eph; // ph -- program header;
 
 	// read 1st page off disk
 	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
@@ -57,6 +57,7 @@ bootmain(void)
 
 	// call the entry point from the ELF header
 	// note: does not return!
+	// (void (*)(void) 强转成返回值为空参数为空的函数指针
 	((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:

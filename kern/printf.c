@@ -5,7 +5,7 @@
 #include <inc/stdio.h>
 #include <inc/stdarg.h>
 
-
+// fmt -- 指向要被format的string
 static void
 putch(int ch, int *cnt)
 {
@@ -34,4 +34,3 @@ cprintf(const char *fmt, ...)
 
 	return cnt;
 }
-

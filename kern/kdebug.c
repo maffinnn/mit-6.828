@@ -179,6 +179,17 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
+	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+	if (lline<=rline){
+		// An N_SLINE symbol represents the start of a source line.
+		// The desc field contains the line number and the value contains the code address for the start of that source line.
+		// On most machines the address is absolute; for stabs in sections (see Stab Sections), it is relative to the function in which the N_SLINE symbol occurs.
+		// https://sourceware.org/gdb/onlinedocs/stabs.html#Line-Numbers
+		info->eip_line = stabs[rline].n_desc;
+	}else
+		return -1; //not found
+	
+
 
 
 	// Search backwards from the line number for the relevant filename

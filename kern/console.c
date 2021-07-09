@@ -187,14 +187,17 @@ cga_putc(int c)
 		cons_putc(' ');
 		break;
 	default:
-		crt_buf[crt_pos++] = c;		/* write the character */
+		crt_buf[crt_pos++] = c;		/* write the character to buffer */
 		break;
 	}
 
 	// What is the purpose of this?
+	// CRT - Cathod Ray Tube 是用来displaygraphics的
+	// crt_pos是当前要输出字符串的位置 CRT_COLS就是一行中可写的字符个数
+	// 如果crt_pos 超出了CRT的范围 先用函数memmove将终端中已有字符往上移动一行，再将超出的部分写到最后一行上
 	if (crt_pos >= CRT_SIZE) {
 		int i;
-
+		// void *memmove(void *str1, const void *str2, size_t n) copies n characters from str2 to str1
 		memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
 		for (i = CRT_SIZE - CRT_COLS; i < CRT_SIZE; i++)
 			crt_buf[i] = 0x0700 | ' ';
