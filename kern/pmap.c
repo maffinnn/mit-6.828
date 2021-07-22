@@ -10,7 +10,7 @@
 #include <kern/kclock.h>
 
 // These variables are set by i386_detect_memory()
-size_t npages;			// Amount of physical memory (in pages)
+size_t npages;			// Amount of physical memory (in pages); PGSIZE = 4096
 static size_t npages_basemem;	// Amount of base memory (in pages)
 
 // These variables are set in mem_init()
@@ -24,7 +24,7 @@ static struct PageInfo *page_free_list;	// Free list of physical pages
 // --------------------------------------------------------------
 
 static int
-nvram_read(int r)
+nvram_read(int r) // nvram == non-volatile mem
 {
 	return mc146818_read(r) | (mc146818_read(r + 1) << 8);
 }
@@ -81,6 +81,7 @@ static void check_page_installed_pgdir(void);
 // If we're out of memory, boot_alloc should panic.
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
+// 这个函数被下面的mem_init函数调用
 static void *
 boot_alloc(uint32_t n)
 {
@@ -92,6 +93,10 @@ boot_alloc(uint32_t n)
 	// which points to the end of the kernel's bss segment:
 	// the first virtual address that the linker did *not* assign
 	// to any kernel code or global variables.
+	// nextfree指针初始化: 在确定了内核本身在内存中的位置后, 让boot_alloc在内核所占空间的内存之后的第一个page开始分配
+	// end指针是链接器产生的 可以查看配置文件kern/kernel.ld  
+	// end指向内核最后一个字节的下一个字节
+	// 这里从链接器中拿到内核的最后一个字节的地址end, 并将这个指针的数值roundUp到PGSIZE的整数倍
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
@@ -99,9 +104,30 @@ boot_alloc(uint32_t n)
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
-	// to a multiple of PGSIZE.
+	// to a multiple of PGSIZE -->由ROUNDUP来完成
 	//
 	// LAB 2: Your code here.
+	// 打印一下当前nextfree的值
+	cprintf("boot_alloc memory at %x\n", nextfree);
+	cprintf("Next memory at %x\n", ROUNDUP((char*)(nextfree+n), PGSIZE));
+
+	if(n==0){
+		return nextfree;
+	}
+
+	if (n>0){
+		// update nextfree
+		nextfree = ROUNDUP((char*)(nextfree+n), PGSIZE);
+		// check是否会running out of memory 即超过虚拟内存0xf0400000
+		if (nextfree > (char*)0xf0400000){
+			panic("boot_alloc is allocating memory out of boundary");
+			nextfree = result;
+			return NULL;
+		}
+		// 现在的起始点就是当前没有被update过的nextfree的值
+		result = nextfree;
+		return result;
+	}
 
 	return NULL;
 }
@@ -125,7 +151,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -148,6 +174,10 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+	// 使用boot_alloc来给pages数组分配内存 boot_alloc内部实现pages对齐因此不用手动调用ROUNDUP()
+	pages = (struct PageInfo* ) boot_alloc(sizeof(struct PageInfo)*npages);
+	memset(pages, 0, sizeof(struct PageInfo)*npages);
+	cprintf("pages: %x\n", pages);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -212,7 +242,7 @@ mem_init(void)
 	// paging).  Here we configure the rest of the flags that we care about.
 	cr0 = rcr0();
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_MP;
-	cr0 &= ~(CR0_TS|CR0_EM);
+	cr0 &= ~(CR0_TS|CR0_EM);// unset TS and EM
 	lcr0(cr0);
 
 	// Some more checks, only possible after kern_pgdir is installed.
@@ -241,22 +271,74 @@ page_init(void)
 	//     in case we ever need them.  (Currently we don't, but...)
 	//  2) The rest of base memory, [PGSIZE, npages_basemem * PGSIZE)
 	//     is free.
+	// 		--> Base Memory 是从物理地址[0,EXTPHYSMEM) 一共有1MB
+	//			1MB/4KB = 256个pages
 	//  3) Then comes the IO hole [IOPHYSMEM, EXTPHYSMEM), which must
-	//     never be allocated.
+	//     never be allocated. 
+	//		--> 一共有384K 384K/4K = 96个pages
 	//  4) Then extended memory [EXTPHYSMEM, ...).
-	//     Some of it is in use, some is free. Where is the kernel
-	//     in physical memory?  Which pages are already in use for
-	//     page tables and other data structures?
+	//     Some of it is in use, some is free. 
+	// 	   Where is the kernel in physical memory?  
+	//	   --> kernel的第一条指令在0x100000c
+	//         最后一条指令可以打印上面的end指针来查看，从而得出kernel大小
+	//			也可通过readelf kernel来查看
+	//	   Which pages are already in use for page tables and other data structures?
+	//	   --> kern_pgdir和pages array
+	//     
+	/*
+	 *             当前Physical Memory Layout
+	 *
+	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
+	 *   			|					 |
+	 *   			+--------------------+				--+  <-- depends on the amount of RAM
+	 * 	            |                    |                |
+	 * 				|  free to allocate  |                |
+	 * 				|                    |                |
+	 * 				+--------------------+ 0x00157000	  |
+	 * 				|    pages(array)    |	64*PGSIZE	  |
+	 * 				+--------------------+ 0x00117000  Extended
+	 *   			|    kern_pgdir	     |	PGSIZE	    Memory
+	 * 				+--------------------+ 0x00116000     |
+	 * 				|                    |                |
+	 *  			|	    Kernel		 |                |
+	 * 				|                    |                |
+	 *  EXTPHYSMEM 	+--------------------+ 0x00100000   --+
+	 *  			|	   IO hole		 |				  |	
+	 * 				|                    |                |
+	 *  IOPHYSMEM	+--------------------+ 0x000a0000     |  
+	 *  			|                    |				  |
+	 *  			|  free to allocate  |				 Base
+	 *  			|					 |			    Memory 
+	 *  			|					 |			      |
+	 *  			+--------------------+ 0x00000400	  |
+	 *  			|	  Preserved		 |	PGSIZE		  |
+	 *  			+--------------------+ 0x00000000   --+
+	 *
+	 */
 	//
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
-	size_t i;
-	for (i = 0; i < npages; i++) {
+    
+	// 跳过perserved
+	// [PGSIZE, IOPHYSMEM)的部分
+	size_t i=1;
+	for (; i < npages_basemem; i++) {
+		pages[i].pp_ref = 0;
+		//pages[i].pp_link指向一个next page on the free list的起始地址, 即linked-list的next指针
+		pages[i].pp_link = page_free_list;
+		// 更新一下链表头部
+		page_free_list = &pages[i];
+	}
+	// 跳过pages array的部分
+    // yangminz大佬使用了PGNUM来算这个值 这里因为暂时还看不懂PGNUM()的原理故暂且不用
+	i = (size_t)(ROUNDUP((char*)pages + sizeof(struct PageInfo)*npages, PGSIZE)-KERNBASE)/PGSIZE;
+	for (; i<npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+
 }
 
 //
@@ -275,7 +357,16 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+	if (page_free_list){
+		struct PageInfo* cur = page_free_list;
+		page_free_list = page_free_list->pp_link;
+		cur->pp_link = NULL;
+		if(alloc_flags & ALLOC_ZERO){
+			memset(page2kva(cur), 0, PGSIZE);
+		}	
+		return cur;
+	}
+	return NULL;
 }
 
 //
@@ -288,6 +379,14 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	if (pp->pp_ref||pp->pp_link) 
+		panic("This page is still in use and should not be freed!\n");
+		
+	if (!pp->pp_ref){
+		pp->pp_link = page_free_list;
+		page_free_list = pp;
+	}
+
 }
 
 //
