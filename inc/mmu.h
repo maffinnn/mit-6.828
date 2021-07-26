@@ -55,9 +55,9 @@
 #define PDXSHIFT	22		// offset of PDX in a linear address
 
 // Page table/directory entry flags.
-#define PTE_P		0x001	// Present
-#define PTE_W		0x002	// Writeable
-#define PTE_U		0x004	// User
+#define PTE_P		0x001	// Present 
+#define PTE_W		0x002	// Writeable // 表示物理内存页可写
+#define PTE_U		0x004	// User //表示用户态可读物理内存页内容
 #define PTE_PWT		0x008	// Write-Through
 #define PTE_PCD		0x010	// Cache-Disable
 #define PTE_A		0x020	// Accessed

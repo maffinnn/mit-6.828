@@ -54,6 +54,8 @@ entry:
 
 	# Load the physical address of entry_pgdir into cr3.  entry_pgdir
 	# is defined in entrypgdir.c.
+	// 在kernel正式init自己的vm前 需要set up kernel自己的page directory
+	// $(RELOC(entry_pgdir)) 的值是entry_pgdir的物理地址
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
 	# Turn on paging.

@@ -97,7 +97,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		
 		cprintf("\t%s:%d: %.*s+%d\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, eip-info.eip_fn_addr);
 		
-		//*ebp 取%ebp指向的old ebp值是一个地址 再强转成指针而类型
+		// *ebp 取%ebp指向的old ebp值是一个地址 再强转成指针而类型
 		ebp = (uint32_t*)*ebp; 
 	}
 	
@@ -173,14 +173,14 @@ monitor(struct Trapframe *tf)
 	// 一开始不清楚要怎样测试required的代码 还在printf.c里写了main函数但是编译器报错找不到头文件
 	// 参考了clann24/jos/lab1的implementation
 	// 可以将要测试的cprintf的代码放在这里运行(GREAT IDEA!!学习了!!)
-	int x =1, y =3, z = 4; // inserted
-	cprintf("x %d, y %x, z %d\n", x, y, z); // inserted
-	unsigned int i = 0x00646c72; // inserted
-	cprintf("H%x Wo%s\n", 57616, &i); // inserted
-	cprintf("x=%d y=%d\n", 3); // inserted
+	// int x =1, y =3, z = 4; // inserted
+	// cprintf("x %d, y %x, z %d\n", x, y, z); // inserted
+	// unsigned int i = 0x00646c72; // inserted
+	// cprintf("H%x Wo%s\n", 57616, &i); // inserted
+	// cprintf("x=%d y=%d\n", 3); // inserted
 
 	// 测试
-	mon_backtrace(0, 0, 0);
+	// mon_backtrace(0, 0, 0);
 
 	while (1) {
 		buf = readline("K> ");
