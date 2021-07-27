@@ -202,7 +202,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES,PTSIZE, PADDR(pages),PTE_U|PTE_P);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages),PTE_U|PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -214,16 +214,18 @@ mem_init(void)
 	//     * overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE,KSTKSIZE,PADDR(bootstack),PTE_W|PTE_P);
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W|PTE_P);
+	cprintf("kernel stack at va = %08x, pa = %08x\n", KSTACKTOP-KSTKSIZE, PADDR(bootstack));
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
-	// Ie.  the VA range [KERNBASE, 2^32) should map to 2^32/2^12=2^20
+	// Ie.  the VA range [KERNBASE, 2^32) should map to
 	//      the PA range [0, 2^32 - KERNBASE)
 	// We might not have 2^32 - KERNBASE bytes of physical memory, but
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir,KERNBASE,~KERNBASE,0,PTE_P|PTE_W);
+	// KERNBASE: 0xf0000000; 2^32: 4 Gib处 即0xffffffff; 两者差0x0fffffff 即~KERNBASE
+	boot_map_region(kern_pgdir, KERNBASE, ~KERNBASE, 0, PTE_P|PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -248,6 +250,11 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+
+	int i; void* va;
+	for (i=0, va= 0; i<1024; i++, va+=PTSIZE){
+		cprintf("%d: va=%08x pde=%08x va2pa=%08x\n",i, va, kern_pgdir[PDX(va)], check_va2pa(kern_pgdir, (uintptr_t)va));
+	}
 }
 
 // --------------------------------------------------------------
@@ -287,7 +294,7 @@ page_init(void)
 	//	   --> kern_pgdir和pages array
 	//     
 	/*
-	 *             当前Physical Memory Layout
+	 *           page_init时的Physical Memory Layout
 	 *
 	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
 	 *   			|					 |
@@ -332,7 +339,7 @@ page_init(void)
 		page_free_list = &pages[i];
 	}
 	// 跳过pages array的部分
-    // yangminz大佬使用了PGNUM来算这个值 这里因为暂时还看不懂PGNUM()的原理故暂且不用
+    // yangminz大佬使用了PGNUM来算这个值
 	i = (size_t)(ROUNDUP((char*)pages + sizeof(struct PageInfo)*npages, PGSIZE)-KERNBASE)/PGSIZE;
 	for (; i<npages; i++){
 		pages[i].pp_ref = 0;
@@ -358,7 +365,7 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	cprintf("entering page_alloc\n");
+	// cprintf("entering page_alloc\n");
 	if (page_free_list){
 		struct PageInfo* cur = page_free_list;
 		page_free_list = page_free_list->pp_link;
@@ -380,7 +387,7 @@ void
 page_free(struct PageInfo *pp)
 {
 	// Fill this function in
-	cprintf("entering page_free\n");
+	// cprintf("entering page_free\n");
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
 	if (pp->pp_ref||pp->pp_link) 
@@ -446,7 +453,7 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	cprintf("entering pgdir_walk\n");
+	// cprintf("entering pgdir_walk\n");
 	// 这里的pgdir存的是page directory的基地址
 	// 可以通过PDX获得page directory index这个索引值 来获取对应的pg_dir_entry
 	pde_t* pg_dir_entry = &pgdir[PDX(va)];
@@ -469,6 +476,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			return NULL;
 
 	 	// 对应的page table page不存在但被要求create这样一个page table page
+		// 需要ALLOC_ZERO清空页表内存 否则之后使用pa2page会出错
 		struct PageInfo* new_page = page_alloc(ALLOC_ZERO);
 		if (new_page == NULL){
 			// page_alloc 不成功
@@ -551,7 +559,7 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-	cprintf("entering page_insert\n");
+	// cprintf("entering page_insert\n");
 	pte_t* pg_tbl_entry = pgdir_walk(pgdir, va, 1);
 	if (pg_tbl_entry == NULL){
 		// 没有allocate成功一个新的page table entry
@@ -590,8 +598,7 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	cprintf("entering page_lookup\n");
-	cprintf("va:%08x\n", va);
+	// cprintf("entering page_lookup\n");
 	//pgdir_walk的返回值有三种情况
 	// 1) 如果pg_dir_entry的present bit为真 说明对应的page table page存在 那么拿到的是一个page table entry
 	pte_t* pg_tbl_entry =  pgdir_walk(pgdir, va, 0); // 不需要create
@@ -606,7 +613,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 		return NULL; // 如果没有page映射在va这个位置
 	}
 	
-	cprintf("physical addr:%08x\n", PTE_ADDR(*pg_tbl_entry));
+	// cprintf("physical addr:%08x\n", PTE_ADDR(*pg_tbl_entry));
 	return pa2page(PTE_ADDR(*pg_tbl_entry));
 	
 }
@@ -630,7 +637,7 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
-	cprintf("entering page_remove\n");
+	// cprintf("entering page_remove\n");
 	pte_t* pte_store;
 	struct PageInfo* pp = page_lookup(pgdir, va, &pte_store);
  
@@ -901,16 +908,13 @@ check_page(void)
 
 	// there is no page allocated at address 0
 	assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL);
-	cprintf("assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL) pass\n");
 
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
-	cprintf("assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0) pass\n");
 	
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0);
-	cprintf("assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0) pass\n");
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
