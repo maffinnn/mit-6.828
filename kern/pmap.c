@@ -108,8 +108,8 @@ boot_alloc(uint32_t n)
 	//
 	// LAB 2: Your code here.
 	// 打印一下当前nextfree的值
-	cprintf("boot_alloc memory at %x\n", nextfree);
-	cprintf("Next memory at %x\n", ROUNDUP((char*)(nextfree+n), PGSIZE));
+	// cprintf("boot_alloc memory at %x\n", nextfree);
+	// cprintf("Next memory at %x\n", ROUNDUP((char*)(nextfree+n), PGSIZE));
 
 	if(n==0){
 		return nextfree;
@@ -251,10 +251,11 @@ mem_init(void)
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
 
-	int i; void* va;
-	for (i=0, va= 0; i<1024; i++, va+=PTSIZE){
-		cprintf("%d: va=%08x pde=%08x va2pa=%08x\n",i, va, kern_pgdir[PDX(va)], check_va2pa(kern_pgdir, (uintptr_t)va));
-	}
+	// int i; void* va;
+	// for (i=0, va= 0; i<1024; i++, va+=PTSIZE){
+	// 	cprintf("%d: va=%08x pde=%08x va2pa=%08x\n",i, va, kern_pgdir[PDX(va)], check_va2pa(kern_pgdir, (uintptr_t)va));
+	// }
+
 }
 
 // --------------------------------------------------------------
