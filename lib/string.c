@@ -106,6 +106,23 @@ strchr(const char *s, char c)
 	return 0;
 }
 
+// Parse a string and turn it to hexidecimal value
+uint32_t atox(const char* va)
+{
+	uint32_t v=0x0;
+	char* p = strchr(va, 'x') + 1;
+	
+	for (; *p!='\0'; p++){
+		if (*p>='a'){
+			v = v*16 + *p - 'a' + 10;
+		}
+		else v = v*16 + *p -'0';
+	}
+
+	return v;
+
+}
+
 // Return a pointer to the first occurrence of 'c' in 's',
 // or a pointer to the string-ending null character if the string has no 'c'.
 char *

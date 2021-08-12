@@ -15,7 +15,7 @@
 
 
 // Entrypoint - this is where the kernel (or our parent environment)
-// starts us running when we are initially loaded into a new environment.
+// starts us(the user environment) running when we are initially loaded into a new environment.
 .text
 .globl _start
 _start:

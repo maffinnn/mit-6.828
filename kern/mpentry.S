@@ -74,6 +74,13 @@ start32:
 	movl    $0x0, %ebp       # nuke frame pointer
 
 	# Call mp_main().  (Exercise for the reader: why the indirect call?)
+	# Ö÷ÒªµÄdifference between the direct and the indirect calll:
+	#	the direct call uses an instruction call with a *fixed* addresss as argument. After the linker has done its job, this address will be included in the opcode
+	# 	the indirect call uses an instrction call with a register as argument(here rax)
+	#	the register is previously loaded either directly with a fixed address of the subroutine that is to be called, or with a value fetched from somewhere else, 
+	# 	such as another register or a place in memory where the subroutine's address was previously stored
+	# --> indirect call 1£©can be used to call differenct subroutines while direct call always call the same subroutine
+	#					2) can be used for position independent code, where the address of a function in memory is only known when the program is loaded 
 	movl    $mp_main, %eax
 	call    *%eax
 
