@@ -323,7 +323,6 @@ snprintf(char *buf, int n, const char *fmt, ...)
 {
 	va_list ap;
 	int rc;
-
 	va_start(ap, fmt);
 	rc = vsnprintf(buf, n, fmt, ap);
 	va_end(ap);

@@ -171,7 +171,6 @@ env_setup_vm(struct Env *e)
 	// Allocate a page for the page directory
 	if (!(p = page_alloc(ALLOC_ZERO)))
 		return -E_NO_MEM;
-
 	// Now, set e->env_pgdir and initialize the page directory.
 	//
 	// Hint:
@@ -198,7 +197,6 @@ env_setup_vm(struct Env *e)
 	 * 直接复制
 	*/
 	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
-
 
 	/*
 	 * 在UVPT（在UTOP+2*PTSIZE这个位置）这个虚拟地址上原来存放的是kern_pgdir
@@ -280,7 +278,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	env_free_list = e->env_link;
 	*newenv_store = e;
 	// 0 表示是kernel mode
-	// cprintf("envs[%d]:\n", curenv? ENVX(curenv->env_id):0);
 	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
@@ -316,7 +313,6 @@ region_alloc(struct Env *e, void *va, size_t len)
 		}
 
 	}
-
 
 }
 
@@ -375,7 +371,6 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 	// 1. 将每一个program segment加载到virtual memory
-	struct Proghdr *ph_tbl;
 
 	/*
 	 * binary 指向的是image file的第一个byte
@@ -389,19 +384,21 @@ load_icode(struct Env *e, uint8_t *binary)
 	lcr3(PADDR(e->env_pgdir));
 
 	// 从programe header table的起始位置
-	ph_tbl = (struct Proghdr*)((uint8_t*)elf_hdr + elf_hdr->e_phoff);
+	// ph_tbl = (struct Proghdr*)((uint8_t*)elf_hdr + elf_hdr->e_phoff);
+	struct Proghdr* ph = (struct Proghdr*) ((uint8_t*)elf_hdr + elf_hdr->e_phoff);
+	struct Proghdr* eph = ph+elf_hdr->e_phnum;
 	struct PageInfo* pp;
-	for(int i=0; i < elf_hdr->e_phnum; i++){
+	for(; ph < eph; ph++){
 		// 需要将要load的programe segment加载入memory
 		// 检查是否是loadable programe segment
-		if (ph_tbl[i].p_type == ELF_PROG_LOAD){
+		if (ph->p_type == ELF_PROG_LOAD){
 			// The ph->p_filesz bytes from the ELF binary, starting at
 			// 'binary + ph->p_offset', should be copied to virtual address
 			//  ph->p_va.  Any remaining memory bytes should be cleared to zero.
 			//  (The ELF header should have ph->p_filesz <= ph->p_memsz.)
-			region_alloc(e, (void*)ph_tbl[i].p_va, ph_tbl[i].p_memsz);
-			memset((void*)ph_tbl[i].p_va, 0, ph_tbl[i].p_memsz);
-			memcpy((void*)ph_tbl[i].p_va, (uint8_t*)elf_hdr + ph_tbl[i].p_offset, ph_tbl[i].p_filesz);	
+			region_alloc(e, (void*)ph->p_va, ph->p_memsz);
+			memset((void*)ph->p_va, 0, ph->p_memsz);
+			memcpy((void*)ph->p_va, (uint8_t*)elf_hdr + ph->p_offset, ph->p_filesz);	
 		}
 	}
 	/*
@@ -413,7 +410,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 	// LAB 3: Your code here.
 	region_alloc(e, (void*)(USTACKTOP-PGSIZE), PGSIZE);
-
+	lcr3(PADDR(kern_pgdir));
 }
 
 //
@@ -568,7 +565,6 @@ env_run(struct Env *e)
 	// LAB 3: Your code here.
 	if (curenv!=e){
 		if (curenv&&curenv->env_status == ENV_RUNNING){
-			// 如果是另起一个新的env
 			curenv->env_status = ENV_RUNNABLE;
 		}
 		e->env_status = ENV_RUNNING;

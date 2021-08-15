@@ -11,6 +11,7 @@
 // Custom page fault handler - if faulting page is copy-on-write,
 // map in our own private writable copy.
 //
+extern int cnt;
 static void
 pgfault(struct UTrapframe *utf)
 {
@@ -38,11 +39,11 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-	addr = ROUNDDOWN(addr, PGSIZE);
 	// 在PFTEMP这里给一个物理地址的mapping 相当于store一个物理地址
 	if((r = sys_page_alloc(0, (void*)PFTEMP, PTE_P|PTE_U|PTE_W))<0){
 		panic("pgfault: sys_page_alloc failed due to %e\n",r);
 	}
+	addr = ROUNDDOWN(addr, PGSIZE);
 	// 先复制addr里的content
 	memcpy((void*)PFTEMP, addr, PGSIZE);
 	// 在remap addr到PFTEMP位置 即addr与PFTEMP指向同一个物理内存
@@ -90,8 +91,11 @@ duppage(envid_t envid, unsigned pn)
 		r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_U|PTE_P); // not writable
 		if (r<0) return r;
 	}
-	else return sys_page_map(0, addr, envid, addr, PTE_P|PTE_U);// read only
-		
+	else {
+		if ((r=sys_page_map(0, addr, envid, addr, PTE_P|PTE_U)<0)){// read only
+			return r;
+		}
+	}
 	return 0;
 
 }
@@ -121,24 +125,29 @@ fork(void)
 	set_pgfault_handler(pgfault);
 
 	envid_t envid = sys_exofork();
-	
+		
+	if (envid<0){
+		panic("fork: sys_exofork error %e\n", envid);
+	}
+
 	if (envid==0){
 		//child process
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 	
-	if (envid<0){
-		panic("fork: sys_exofork error %e\n", envid);
-	}
-	
 	// duplicate parent address space
+	/*
+	*
+	*/
+	cprintf("duppage parent addr\n");
 	for (addr=0; addr<USTACKTOP; addr+=PGSIZE){
 		if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_U)){
 			duppage(envid, PGNUM(addr));
 		}
 	}
 	// allocate user exception stack
+	// cprintf("alloc user expection stack\n");
 	if ((r = sys_page_alloc(envid, (void*)(UXSTACKTOP-PGSIZE),PTE_P|PTE_W|PTE_U))<0)
 		return r;
 	
@@ -156,40 +165,6 @@ fork(void)
 int
 sfork(void)
 {
-	uintptr_t addr;  int r;
-	set_pgfault_handler(pgfault);
-	envid_t envid = sys_exofork();
-	if (envid<0){
-		panic("fork: sys_exofork error %e\n", envid);
-	}
-
-	if (envid == 0){
-		// child process
-		thisenv=&envs[sys_getenvid()];
-		return 0;
-	}
-
-	// duplicate parent address space
-	int perm = PTE_P|PTE_U;
-	for (addr=0; addr<USTACKTOP-PGSIZE; addr+=PGSIZE){
-		if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_U)){
-			perm = (uvpt[PGNUM(addr)]&PTE_W)?(perm|PTE_SHARE):(perm);
-			if ((r = sys_page_map(0, (void*)addr, envid, (void*)addr, perm))<0)
-				return r;
-		}
-	}
-	// stack is copy-on-write
-	duppage(envid, PGNUM(addr));
-		
-	if ((r = sys_page_alloc(envid, (void*)(UXSTACKTOP-PGSIZE),PTE_W|PTE_U))<0)
-		return r;
-	
-	extern void* _pgfault_upcall();
-	sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
-
-	if ((r = sys_env_set_status(envid, ENV_RUNNABLE))<0)
-		return r;
-
-	return envid;
-	
+	panic("sfork not implemented");
+	return -E_INVAL;	
 }

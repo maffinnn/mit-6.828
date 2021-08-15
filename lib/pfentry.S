@@ -10,8 +10,9 @@
 // When a page fault actually occurs, the kernel switches our ESP to
 // point to the user exception stack if we're not already on the user
 // exception stack, and then it pushes a UTrapframe onto our user
-// exception stack:
-//  (这里有4个bytes的空间用来存放返回地址的值)
+// exception stack(这一步是由kern/trap.c/page_fault_handler来做的):
+//  ...
+//  reserved scratch space
 //	trap-time esp     <-- 48(%esp)
 //	trap-time eflags
 //	trap-time eip     <-- 40(%esp)
@@ -36,7 +37,7 @@ _pgfault_upcall:
 	// Call the C page fault handler.
 	pushl %esp			// function argument: pointer to UTF
 	movl _pgfault_handler, %eax
-	call *%eax  
+	call *%eax   			// 间接寻址
 	addl $4, %esp			// pop function argument
 	
 	// Now the C page fault handler has returned and you must return
@@ -51,7 +52,7 @@ _pgfault_upcall:
 	 *   into a register, and all registers must have their trap-time
 	 *   values after the return.
 	 *   We can't call 'ret' from the exception stack either, since if we
-	 *   did, %esp would have the wrong value.--> 会跳到user normal stack上
+	 *   did, %esp would have the wrong value.
 	 *   So instead, we push the trap-time %eip onto the *trap-time* stack!
 	 *   Below we'll switch to that stack and call 'ret', which will
 	 *   restore %eip to its pre-fault value.
@@ -66,6 +67,7 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
+	// 目前user level fault handler已经返回了
 	/* 
 	 * return address 即trap time eip的值
 	 * 我们要做的就是将trap time eip的值写入trap time esp所指向的上一个trapframe
@@ -73,8 +75,8 @@ _pgfault_upcall:
 	*/
 	movl %esp, %ebx; 	// 临时保存一下当前esp的值
 	movl 40(%esp), %eax;	// 获取trap time eip的值并存在%eax中
-	movl 48(%esp), %esp; // 将trap time esp的地址放入当前esp中
-	pushl %eax; // 将trap time eip的值写入trap time esp所指向的位置的地址 
+	movl 48(%esp), %esp;    // 将trap time esp的地址放入当前esp中
+	pushl %eax;   // 将trap time eip的值写入trap time esp所指向的位置的地址 
 	// 思考：为什么可以写入呢？
 	// 此时return address就已经设置好了 最后ret时可以找到目标地址了
 	movl %ebx, %esp;	// 还原当前栈的esp值
@@ -83,6 +85,13 @@ _pgfault_upcall:
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
 	addl $8, %esp;  // remove掉utf_err和utf_fault_va
+	
+	; addl $8, %esp                 // esp+8 -> PushRegs   over utf_fault_va utf_err
+	; movl 0x20(%esp), %eax         // eax = (esp+0x20 -> utf_eip )
+	; subl $4, 0x28(%esp)           // for trap time eip 保留32bit,   esp+48 = utf_esp
+	; movl 0x28(%esp), %edx         // %edx = utf_esp-4  
+	; movl %eax, (%edx)             // %eax = eip ----> esp-4  以至于ret可以直接读取其继续执行的地址
+	
 	popal;			// pop掉general registers
 
 	// Restore eflags from the stack.  After you do this, you can

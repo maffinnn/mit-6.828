@@ -233,7 +233,7 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	if (tf->tf_trapno == T_PGFLT){
-		// cprintf("T_PGFLT\n");
+		cprintf("T_PGFLT\n");
 		page_fault_handler(tf);
 		return;
 	}
@@ -345,8 +345,12 @@ trap(struct Trapframe *tf)
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
-	if (curenv && curenv->env_status == ENV_RUNNING)
+	if (curenv && curenv->env_status == ENV_RUNNING){
+		// cprintf("curenv->eip: %08x\ncurenv->esp: %08x\n", 
+		// 		curenv->env_tf.tf_eip
+		// 		, curenv->env_tf.tf_esp);
 		env_run(curenv);
+	}
 	else
 		sched_yield();
 }
@@ -359,7 +363,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
-	// cprintf("fault_va = %08x\n", fault_va);
+	cprintf("fault_va = %08x\n", fault_va);
 	// Handle kernel-mode page faults.
 	// LAB 3: Your code here.
 	// 检查code segment register的lower 2 bits 的privilege level
@@ -403,30 +407,28 @@ page_fault_handler(struct Trapframe *tf)
 
 	// 如果已经给curenv设置了env_pgfault_upcall的话 
 	if (curenv->env_pgfault_upcall){
-		struct UTrapframe *utf;
-		uintptr_t utf_addr;
+		struct UTrapframe* utf;
 		// 查看esp是否已经指向user exception stack了
-		if (tf->tf_esp<=UXSTACKTOP-1 && tf->tf_esp>=UXSTACKTOP-PGSIZE){
+		if (tf->tf_esp<UXSTACKTOP && tf->tf_esp>=UXSTACKTOP-PGSIZE){
 			// 说明是一个recursive user page fault
-			// 那么就接着set up一个user page fault stack frame 
+			// 那么就接着set up一个user page fault stack frame
 			// 这里-4是因为要预留一个4个byte scratch space
-			// addl $4, %esp			// 在pfentry.S里pop了_pgfault_handler的function argumnet
-			utf_addr = tf->tf_esp-sizeof(struct UTrapframe)-4;
+			utf =(struct UTrapframe *)(tf->tf_esp-sizeof(struct UTrapframe)-4);
+			cprintf("recursive page fault\n");
 	    }
 		else{
 			// 第一次user page fault
 			// 那么让esp直接指向UXSTACKTOP-1
-			utf_addr = UXSTACKTOP-sizeof(struct UTrapframe);
+			utf = (struct UTrapframe *)(UXSTACKTOP-sizeof(struct UTrapframe));
 		}
-		/*  检查是否发生一下状况
+		/*  检查是否发生以下状况
 		 *  1）没有page fault upcall 
 		 *  2）或是当前env没有allocate一个page给exception stack 
 		 *  3) 或是当前env的exception stack overflow了
 		 *  4）或是当前va是不可写的
 		*/
-		user_mem_assert(curenv, (void*)utf_addr, 1, PTE_W); // 1 is enough
+		user_mem_assert(curenv, (void*)utf, sizeof(struct UTrapframe), PTE_W);
 		// 如果上面的检测通过了 将user trap frame写入user exception stack中
-		utf = (struct UTrapframe*) utf_addr;
 		utf->utf_fault_va = fault_va;
 		utf->utf_err = tf->tf_err;
 		utf->utf_regs = tf->tf_regs;
@@ -436,16 +438,15 @@ page_fault_handler(struct Trapframe *tf)
 		// 将eip指向page fault upcall入口地址(pfentry.S)
 		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
 		// 将esp指向user exception stack地址
-		curenv->env_tf.tf_esp = utf_addr;
+		curenv->env_tf.tf_esp = (uintptr_t)utf;
 		env_run(curenv);
 
+	}else{
+		// Destroy the environment that caused the fault.
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);
 	}
-
-
-	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
-	env_destroy(curenv);
 }
 

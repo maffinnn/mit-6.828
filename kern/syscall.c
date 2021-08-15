@@ -99,7 +99,7 @@ sys_exofork(void)
 	 *  而reg_eax就是pass return value的register(定义在lib/syscall.从中) 因此需要将它置为0
 	*/
 	childenv->env_tf = curenv->env_tf;
-	childenv->env_tf.tf_regs.reg_eax = 0;
+	childenv->env_tf.tf_regs.reg_eax = 0; // childenv的返回值
 	return childenv->env_id;
 
 }
@@ -172,6 +172,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 //	-E_INVAL if perm is inappropriate (see above).
 //	-E_NO_MEM if there's no memory to allocate the new page,
 //		or to allocate any necessary page tables.
+
 static int
 sys_page_alloc(envid_t envid, void *va, int perm)
 {
@@ -191,19 +192,19 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ((uintptr_t)va>=UTOP||(uintptr_t)va%PGSIZE) 
 		return -E_INVAL;
 	
+	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
+	if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)){
+		 return -E_INVAL;
+	}
+
 	struct PageInfo* pp = page_alloc(ALLOC_ZERO);
 	if (!pp) return -E_NO_MEM;
 
-	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
-	if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)){
-		 // cprintf("sys_page_alloc: permission denied\n");
-		 return -E_INVAL;
-	}
 	if ((ret = page_insert(e->env_pgdir, pp, va, perm))<0){
 		page_free(pp);
 		return ret;
 	}
-
+	// cprintf("sys_page_alloc at addr: %08x\n", va);
 	return 0;
 }
 
@@ -241,19 +242,21 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_BAD_ENV;
 	}
 
-	if ((uintptr_t)srcva>=UTOP||(uintptr_t)dstva>=UTOP||(uintptr_t)srcva%PGSIZE||(uintptr_t)dstva%PGSIZE) 
+	if ((uintptr_t)srcva>=UTOP||(uintptr_t)dstva>=UTOP||(uintptr_t)srcva%PGSIZE||(uintptr_t)dstva%PGSIZE){
 		return -E_INVAL;
-
-	struct PageInfo* pp = page_lookup(srcenv->env_pgdir, srcva, &pg_tbl_entry);
-	 // src physical page is not found at src env
-	if (!pp) return -E_INVAL;
-	// 在srcenv中存在一个要找的物理页面
+	}	
 	// check permissions
-	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
+	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)){
+		 return -E_INVAL;
+	}
 	if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)){
-		// cprintf("sys_page_alloc: permission denied\n");
 		return -E_INVAL;
 	}
+
+	struct PageInfo* pp = page_lookup(srcenv->env_pgdir, srcva, &pg_tbl_entry);
+	// src physical page is not found at src env
+	if (!pp) return -E_INVAL;
+	// 在srcenv中存在一个要找的物理页面
 	if ((perm&PTE_W)&&(!(*pg_tbl_entry&PTE_W))){
 		return -E_INVAL;
 	}
@@ -336,37 +339,46 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct PageInfo* pp; pte_t* pte; int ret;
 	if ((envid2env(envid, &e, 0)<0))// checkperm = 0 means allowed to send IPC messages to any other env
 		return -E_BAD_ENV;
+
 	e->env_ipc_perm = 0;
+
 	if (e->env_ipc_recving==0){ 
 		// env_ipc_recving = 0  means that env has not prepared receving
 		// the receiver is not blocked at sys_ipc_recv or other environment managed to send first
 		return -E_IPC_NOT_RECV;
 	} 
+
 	do {
 		if (e->env_ipc_dstva == (void*)-1) break; // receiver didnot ask for a page
 		// 存在dstva 但srcva not provided
 		if (srcva == (void*)-1) return -E_INVAL;
 		if (srcva<(void*)UTOP && srcva>=(void*)0){
 			if ((uintptr_t)srcva%PGSIZE) return -E_INVAL; // not aligned
-			pp = page_lookup(curenv->env_pgdir,srcva, &pte);
-			// send page currently mapped at srcva
-			if (!pte||!pp) return -E_INVAL;
 			 // not allowable permission
 			if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
 			if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)) return -E_INVAL;
+
+			pp = page_lookup(curenv->env_pgdir,srcva, &pte);
+			// send page currently mapped at srcva
+			if (!pte||!pp) return -E_INVAL;
 			if ((perm&PTE_W)&&(!(*pte&PTE_W))) return -E_INVAL;
+			
 			if ((ret = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)<0))	
 				return ret;
 			
 		}
 	}while(0);
+
 	// mapping succeeded
 	e->env_ipc_recving = 0; // to block future sends
 	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_value = value;
 	e->env_ipc_perm = perm;
 	e->env_status = ENV_RUNNABLE;
-	e->env_tf.tf_regs.reg_eax = 0;//why
+	/*
+	 * 给e这个进程的返回值
+	*/
+	e->env_tf.tf_regs.reg_eax = 0;
 
 	return 0;
 	
@@ -407,9 +419,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-
-	// panic("syscall not implemented");
-
 	switch (syscallno) {
 	case SYS_cputs: 
 		// cprintf("SYS_cputs\n");
@@ -453,7 +462,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		// cprintf("SYS_ipc_recv\n");
 		return sys_ipc_recv((void*)a1);
 	default:
-		cprintf("invalid syscall\n");
+		// cprintf("invalid syscall\n");
 		return -E_INVAL;
 	}
 

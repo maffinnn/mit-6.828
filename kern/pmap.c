@@ -20,7 +20,6 @@ pde_t *kern_pgdir;		// Kernel's initial page directory
 struct PageInfo *pages;		// Physical page state array
 static struct PageInfo *page_free_list;	// Free list of physical pages
 
-
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
 // --------------------------------------------------------------
@@ -185,6 +184,7 @@ mem_init(void)
 	memset(pages, 0, sizeof(struct PageInfo)*npages);
 	cprintf("pages: %x\n", pages);
 
+
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
@@ -240,8 +240,8 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W|PTE_P);
-	cprintf("boot kernel stack at va = %08x, pa = %08x\n", KSTACKTOP-KSTKSIZE, PADDR(bootstack));
-
+	// cprintf("boot kernel stack at va = %08x, pa = %08x\n", KSTACKTOP-KSTKSIZE, PADDR(bootstack));
+	
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -405,7 +405,7 @@ page_init(void)
     
 	// 跳过perserved
 	// [PGSIZE, IOPHYSMEM)的部分
-	size_t i=1;
+	size_t i=1; 
 	for (; i < npages_basemem; i++) {
 		// 跳过APs bootstrap code的部分
 		if (i == MPENTRY_PADDR/PGSIZE) 
@@ -417,13 +417,15 @@ page_init(void)
 		page_free_list = &pages[i];
 	}
 	// 跳过pages array的部分
-    // yangminz大佬使用了PGNUM来算这个值
-	i = (size_t)(ROUNDUP((char*)pages + sizeof(struct PageInfo)*npages, PGSIZE)-KERNBASE)/PGSIZE;
+
+	i = PGNUM((int)((char *)pages) + (sizeof(struct PageInfo) * npages) - 0xf0000000);
+	cprintf("available pages on the page_free_list = %d\n",npages-2-(i-npages_basemem));
 	for (; i<npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+
 
 }
 
@@ -439,7 +441,7 @@ page_init(void)
 // Returns NULL if out of free memory.
 //
 // Hint: use page2kva and memset
-int cnt = 0;
+int cnt=0;
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
@@ -448,11 +450,11 @@ page_alloc(int alloc_flags)
 		struct PageInfo* cur = page_free_list;
 		page_free_list = page_free_list->pp_link;
 		cur->pp_link = NULL;
+		cnt++;
+		cprintf("alloc_cnt=%d\n", cnt);
 		if(alloc_flags & ALLOC_ZERO){
 			memset(page2kva(cur), 0, PGSIZE);
 		}	
-		cnt++;
-		// cprintf("cnt=%d\n", cnt);
 		return cur;
 	}
 
