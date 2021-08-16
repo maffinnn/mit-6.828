@@ -405,11 +405,14 @@ page_init(void)
     
 	// 跳过perserved
 	// [PGSIZE, IOPHYSMEM)的部分
+	pages[0].pp_ref = 1;
 	size_t i=1; 
 	for (; i < npages_basemem; i++) {
 		// 跳过APs bootstrap code的部分
-		if (i == MPENTRY_PADDR/PGSIZE) 
+		if (i == MPENTRY_PADDR/PGSIZE){
+			pages[i].pp_ref = 1;
 			continue;
+		}
 		pages[i].pp_ref = 0;
 		//pages[i].pp_link指向一个next page on the free list的起始地址, 即linked-list的next指针
 		pages[i].pp_link = page_free_list;
@@ -417,14 +420,23 @@ page_init(void)
 		page_free_list = &pages[i];
 	}
 	// 跳过pages array的部分
+	for (; i<PGNUM((int)((char *)pages) + (sizeof(struct PageInfo) * npages) - 0xf0000000);i++){
+		pages[i].pp_ref = 1;
+	} 
 
-	i = PGNUM((int)((char *)pages) + (sizeof(struct PageInfo) * npages) - 0xf0000000);
 	cprintf("available pages on the page_free_list = %d\n",npages-2-(i-npages_basemem));
 	for (; i<npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+	// struct PageInfo* ptr = page_free_list;
+	// int count=0;
+	// while(ptr){
+	// 	count++;
+	// 	cprintf("page_free_list pointed to %08x count=%d\n", ptr, count);
+	// 	ptr = ptr->pp_link;
+	// }
 
 
 }
@@ -469,11 +481,13 @@ void
 page_free(struct PageInfo *pp)
 {
 	// Fill this function in
-	// cprintf("entering page_free\n");
+	cprintf("page_free called\n");
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
-	if (pp->pp_ref||pp->pp_link) 
-		panic("This page is still in use and should not be freed!\n");
+	if (pp->pp_link!=NULL) 
+		panic("page_free: ths page is on the page_free_list, invalid free operation\n");
+	if (pp->pp_ref!=0)
+		panic("page_free: the page is in use and should not be freed!\n");
 		
 	pp->pp_link = page_free_list;
 	page_free_list = pp;

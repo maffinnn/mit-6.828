@@ -363,9 +363,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			if (!pte||!pp) return -E_INVAL;
 			if ((perm&PTE_W)&&(!(*pte&PTE_W))) return -E_INVAL;
 			
-			if ((ret = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)<0))	
+			if ((ret = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)<0)){
 				return ret;
-			
+			}
 		}
 	}while(0);
 

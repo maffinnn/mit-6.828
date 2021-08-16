@@ -121,7 +121,7 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	// cprintf("[%08x] called fork\n", sys_getenvid());
-	int r; uintptr_t addr;
+	int r; size_t pn;
 	set_pgfault_handler(pgfault);
 
 	envid_t envid = sys_exofork();
@@ -141,9 +141,10 @@ fork(void)
 	*
 	*/
 	cprintf("duppage parent addr\n");
-	for (addr=(uintptr_t)UTEMP; addr<(uintptr_t)USTACKTOP; addr+=PGSIZE){
-		if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_U)){
-			duppage(envid, PGNUM(addr));
+
+	for (pn=PGNUM(UTEXT); pn<PGNUM(USTACKTOP); pn++){
+		if ((uvpd[pn>>10]&PTE_P)&&(uvpt[pn]&PTE_P)){
+			duppage(envid, pn);
 		}
 	}
 	// allocate user exception stack

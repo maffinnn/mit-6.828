@@ -308,6 +308,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 			return;
 		}
 		if ((ret = page_insert(e->env_pgdir, pp, va, PTE_P|PTE_U|PTE_W))<0){
+			page_free(pp);
 			panic("region_alloc: fail to insert a page\n");
 			return;
 		}
