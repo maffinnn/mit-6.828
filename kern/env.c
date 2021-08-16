@@ -277,13 +277,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;
-<<<<<<< HEAD
-
-	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
-=======
 	// 0 ±íÊ¾ÊÇkernel mode
 	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
->>>>>>> lab4
 	return 0;
 }
 
@@ -430,11 +425,6 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
-<<<<<<< HEAD
-
-	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
-	// LAB 5: Your code here.
-=======
 	struct Env* e;
 	int ret;
 	if ((ret = env_alloc(&e, 0))<0){
@@ -444,7 +434,6 @@ env_create(uint8_t *binary, enum EnvType type)
 	load_icode(e, binary);
 	e->env_type = type;
 
->>>>>>> lab4
 }
 
 //

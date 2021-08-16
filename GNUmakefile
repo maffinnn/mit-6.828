@@ -89,7 +89,7 @@ CFLAGS += -fno-omit-frame-pointer
 CFLAGS += -std=gnu99
 CFLAGS += -static
 CFLAGS += -fno-pie
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
+CFLAGS += -Wall -Wno-format -Wno-unused -gstabs -m32 # -Werror
 # -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
 # mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
 CFLAGS += -fno-tree-ch
@@ -210,7 +210,8 @@ grade:
 	@echo $(MAKE) clean
 	@$(MAKE) clean || \
 	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
-	./grade-lab$(LAB) $(GRADEFLAGS)
+	  ./grade-lab4 $(GRADEFLAGS)
+#./grade-lab$(LAB) $(GRADEFLAGS)
 
 git-handin: handin-check
 	@if test -n "`git config remote.handin.url`"; then \

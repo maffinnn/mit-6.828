@@ -86,10 +86,7 @@ static void check_page_installed_pgdir(void);
 // before the page_free_list list has been set up.
 // Note that when this function is called, we are still using entry_pgdir,
 // which only maps the first 4MB of physical memory.
-<<<<<<< HEAD
-=======
 // 这个函数被下面的mem_init函数调用
->>>>>>> lab4
 static void *
 boot_alloc(uint32_t n)
 {
@@ -115,29 +112,10 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE -->由ROUNDUP来完成
 	//
 	// LAB 2: Your code here.
-	// 打印一下当前nextfree的值
-	// cprintf("boot_alloc memory at %x\n", nextfree);
-	// cprintf("Next memory at %x\n", ROUNDUP((char*)(nextfree+n), PGSIZE));
+	result = nextfree;
+	nextfree = ROUNDUP((char*)(nextfree+n), PGSIZE);
 
-	if(n==0){
-		return nextfree;
-	}
-
-	if (n>0){
-		// update nextfree
-		nextfree = ROUNDUP((char*)(nextfree+n), PGSIZE);
-		// check是否会running out of memory 即超过虚拟内存0xf0400000
-		if (nextfree > (char*)0xf0400000){
-			panic("boot_alloc is allocating memory out of boundary");
-			nextfree = result;
-			return NULL;
-		}
-		// 现在的起始点就是当前没有被update过的nextfree的值
-		result = nextfree;
-		return result;
-	}
-
-	return NULL;
+	return result;
 }
 
 // Set up a two-level page table:
@@ -373,7 +351,7 @@ page_init(void)
 	 *
 	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
 	 *   			|					 |
-	 *   			+--------------------+				--+  <-- depends on the amount of RAM
+	 *   			+--------------------+ 0x08000000   --+  <-- depends on the amount of RAM
 	 * 	            |                    |                |
 	 * 				|  free to allocate  |                |
 	 * 				|                    |                |
@@ -396,7 +374,7 @@ page_init(void)
 	 *  			|  free to allocate  |				 Base
 	 *  			|					 |			    Memory 
 	 *  			|					 |			      |
-	 *  			+--------------------+ 0x00000400	  |
+	 *  			+--------------------+ 0x00001000	  |
 	 *  			|	  Preserved		 |	PGSIZE		  |
 	 *  			+--------------------+ 0x00000000   --+
 	 *
@@ -406,41 +384,41 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
     
-	// 跳过perserved
 	// [PGSIZE, IOPHYSMEM)的部分
 	pages[0].pp_ref = 1;
-	size_t i=1; 
-	for (; i < npages_basemem; i++) {
-		// 跳过APs bootstrap code的部分
-		if (i == MPENTRY_PADDR/PGSIZE){
-			pages[i].pp_ref = 1;
-			continue;
-		}
+	size_t i = 1;
+	for (; i<MPENTRY_PADDR/PGSIZE; i++){
 		pages[i].pp_ref = 0;
-		//pages[i].pp_link指向一个next page on the free list的起始地址, 即linked-list的next指针
 		pages[i].pp_link = page_free_list;
-		// 更新一下链表头部
 		page_free_list = &pages[i];
 	}
-	// 跳过pages array的部分
-	for (; i<PGNUM((int)((char *)pages) + (sizeof(struct PageInfo) * npages) - 0xf0000000);i++){
-		pages[i].pp_ref = 1;
-	} 
 
-	cprintf("available pages on the page_free_list = %d\n",npages-2-(i-npages_basemem));
+	extern unsigned char mpentry_start[], mpentry_end[];
+	size_t size = ROUNDUP((mpentry_end-mpentry_start), PGSIZE);
+	for (; i<(MPENTRY_PADDR+size)/PGSIZE; i++){
+		pages[i].pp_ref = 1;
+	}
+
+	for (; i<npages_basemem; i++){
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+	}
+	// IO hole
+	for (; i<EXTPHYSMEM/PGSIZE; i++){
+		pages[i].pp_ref = 1;
+	}
+	// 跳过kern pages array和env array的部分
+	physaddr_t first_free_page = PADDR(boot_alloc(0));
+	for (; i<first_free_page/PGSIZE; i++){
+		pages[i].pp_ref = 1;
+	}
+
 	for (; i<npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
-	// struct PageInfo* ptr = page_free_list;
-	// int count=0;
-	// while(ptr){
-	// 	count++;
-	// 	cprintf("page_free_list pointed to %08x count=%d\n", ptr, count);
-	// 	ptr = ptr->pp_link;
-	// }
-
 
 }
 
@@ -587,8 +565,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		// increment page reference count		
 		new_page->pp_ref++;
 		// 更新一下对应的page directory entry
-		*pg_dir_entry = page2pa(new_page)|PTE_P|PTE_W|PTE_U;
-		 pg_tbl = (pte_t* )KADDR(PTE_ADDR(*pg_dir_entry));
+		 pg_tbl = (pte_t* )page2kva(new_page);
+		 *pg_dir_entry = PADDR(pg_tbl)|PTE_P|PTE_W|PTE_U;
 	}
 
 	return &pg_tbl[PTX(va)]; // 虚拟地址
@@ -611,7 +589,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 {
 	// Fill this function in
 	// cprintf("entering boot_map_region\n");
-	int num = size/PGSIZE; 
+	int num = ROUNDUP(size,PGSIZE)/PGSIZE; 
 	int i;
 	for (i=1; i<=num; i++){
 		// 这里使用pgdir_walk的返回值一定是一个空的的page_table_entry
@@ -664,18 +642,17 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		cprintf("page_insert: fail to insert a new page table\n");
 		return -E_NO_MEM;
 	}
-	physaddr_t pa = page2pa(pp);
 	// 如果已经有page映射在了va
 	if ((*pg_tbl_entry)&PTE_P){
 		// 如果这个physical page正好与pg_table_entry里所记录的pa相同
-		if (pa==PTE_ADDR(*pg_tbl_entry)){
+		if (page2pa(pp)==PTE_ADDR(*pg_tbl_entry)){
 			tlb_invalidate(pgdir, va);
 			pp->pp_ref--;
 		}
 		else page_remove(pgdir, va); // 内部已经调用了tlb_invalidate
 	}
 	// 更新一下page table entry
-	*pg_tbl_entry = pa|perm|PTE_P;
+	*pg_tbl_entry = page2pa(pp)|perm|PTE_P;
 	pp->pp_ref++;
 	return 0;
 }
@@ -873,6 +850,7 @@ user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 static void
 check_page_free_list(bool only_low_memory)
 {
+	cprintf("entering check_page_free_list\n");
 	struct PageInfo *pp;
 	unsigned pdx_limit = only_low_memory ? 1 : NPDENTRIES;
 	int nfree_basemem = 0, nfree_extmem = 0;
@@ -884,10 +862,11 @@ check_page_free_list(bool only_low_memory)
 	if (only_low_memory) {
 		// Move pages with lower addresses first in the free
 		// list, since entry_pgdir does not map all pages.
-		struct PageInfo *pp1, *pp2;
-		struct PageInfo **tp[2] = { &pp1, &pp2 };
+		struct PageInfo* pp1, * pp2;
+
+		struct PageInfo** tp[2] = { &pp1, &pp2 };
 		for (pp = page_free_list; pp; pp = pp->pp_link) {
-			int pagetype = PDX(page2pa(pp)) >= pdx_limit;
+			int pagetype = PDX(page2pa(pp)) >= pdx_limit;// either true or false
 			*tp[pagetype] = pp;
 			tp[pagetype] = &pp->pp_link;
 		}
@@ -895,12 +874,14 @@ check_page_free_list(bool only_low_memory)
 		*tp[0] = pp2;
 		page_free_list = pp1;
 	}
-
 	// if there's a page that shouldn't be on the free list,
 	// try to make sure it eventually causes trouble.
-	for (pp = page_free_list; pp; pp = pp->pp_link)
-		if (PDX(page2pa(pp)) < pdx_limit)
+	for (pp = page_free_list; pp; pp = pp->pp_link){
+		if (PDX(page2pa(pp)) < pdx_limit){
+			// cprintf("	pp addr: %08x\n", page2pa(pp));
 			memset(page2kva(pp), 0x97, 128);
+		}
+	}
 
 	first_free_page = (char *) boot_alloc(0);
 	for (pp = page_free_list; pp; pp = pp->pp_link) {
@@ -937,6 +918,7 @@ check_page_free_list(bool only_low_memory)
 static void
 check_page_alloc(void)
 {
+	cprintf("entering check_page_alloc\n");
 	struct PageInfo *pp, *pp0, *pp1, *pp2;
 	int nfree;
 	struct PageInfo *fl;
