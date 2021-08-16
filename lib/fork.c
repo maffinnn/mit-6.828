@@ -141,7 +141,7 @@ fork(void)
 	*
 	*/
 	cprintf("duppage parent addr\n");
-	for (addr=0; addr<USTACKTOP; addr+=PGSIZE){
+	for (addr=(uintptr_t)UTEMP; addr<(uintptr_t)USTACKTOP; addr+=PGSIZE){
 		if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_U)){
 			duppage(envid, PGNUM(addr));
 		}

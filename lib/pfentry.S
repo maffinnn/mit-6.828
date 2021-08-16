@@ -17,7 +17,7 @@
 //	trap-time eflags
 //	trap-time eip     <-- 40(%esp)
 //	utf_regs.reg_eax  -----+
-//	...					   |
+//	utf_regs.reg_ecx				   |
 //  ...   			 general pupose registers 一共 32 bytes
 //	utf_regs.reg_esi	   |
 //	utf_regs.reg_edi  -----+
@@ -73,32 +73,23 @@ _pgfault_upcall:
 	 * 我们要做的就是将trap time eip的值写入trap time esp所指向的上一个trapframe
 	 * 其实就是在模拟stack调用过程
 	*/
-	movl %esp, %ebx; 	// 临时保存一下当前esp的值
-	movl 40(%esp), %eax;	// 获取trap time eip的值并存在%eax中
-	movl 48(%esp), %esp;    // 将trap time esp的地址放入当前esp中
-	pushl %eax;   // 将trap time eip的值写入trap time esp所指向的位置的地址 
+	movl 0x28(%esp), %eax;	// 获取trap time eip的值并存在%eax中
+	subl $0x4, 0x30(%esp);  // trap-time esp = trap-time esp - 4
+	movl 0x30(%esp), %edx;    // 将trap time esp的地址放入当前esp中
+	movl %eax, (%edx);   // 将trap time eip的值写入trap time esp所指向的位置的地址 
 	// 思考：为什么可以写入呢？
 	// 此时return address就已经设置好了 最后ret时可以找到目标地址了
-	movl %ebx, %esp;	// 还原当前栈的esp值
-	subl $4, 48(%esp);  // 手动remove掉4个bytes的scratch space
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
-	addl $8, %esp;  // remove掉utf_err和utf_fault_va
-	
-	; addl $8, %esp                 // esp+8 -> PushRegs   over utf_fault_va utf_err
-	; movl 0x20(%esp), %eax         // eax = (esp+0x20 -> utf_eip )
-	; subl $4, 0x28(%esp)           // for trap time eip 保留32bit,   esp+48 = utf_esp
-	; movl 0x28(%esp), %edx         // %edx = utf_esp-4  
-	; movl %eax, (%edx)             // %eax = eip ----> esp-4  以至于ret可以直接读取其继续执行的地址
-	
+	addl $0x8, %esp;  // remove掉utf_err和utf_fault_va	
 	popal;			// pop掉general registers
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
-	addl $4, %esp; // remove掉trap time eip 因为我们已经设置好了
+	addl $0x4, %esp; // remove掉trap time eip 因为我们已经设置好了
 	popfl;		 // restore eflags
 
 	// Switch back to the adjusted trap-time stack.
