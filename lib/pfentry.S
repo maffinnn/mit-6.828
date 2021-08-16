@@ -10,17 +10,19 @@
 // When a page fault actually occurs, the kernel switches our ESP to
 // point to the user exception stack if we're not already on the user
 // exception stack, and then it pushes a UTrapframe onto our user
-// exception stack:
-//
-//	trap-time esp
+// exception stack(这一步是由kern/trap.c/page_fault_handler来做的):
+//  ...
+//  reserved scratch space
+//	trap-time esp     <-- 48(%esp)
 //	trap-time eflags
-//	trap-time eip
-//	utf_regs.reg_eax
-//	...
-//	utf_regs.reg_esi
-//	utf_regs.reg_edi
-//	utf_err (error code)
-//	utf_fault_va            <-- %esp
+//	trap-time eip     <-- 40(%esp)
+//	utf_regs.reg_eax  -----+
+//	utf_regs.reg_ecx				   |
+//  ...   			 general pupose registers 一共 32 bytes
+//	utf_regs.reg_esi	   |
+//	utf_regs.reg_edi  -----+
+//	utf_err (error code) // 4 bytes
+//	utf_fault_va  // 4 bytes       <-- %esp
 //
 // If this is a recursive fault, the kernel will reserve for us a
 // blank word above the trap-time esp for scratch work when we unwind
@@ -35,48 +37,67 @@ _pgfault_upcall:
 	// Call the C page fault handler.
 	pushl %esp			// function argument: pointer to UTF
 	movl _pgfault_handler, %eax
-	call *%eax
+	call *%eax   			// 间接寻址
 	addl $4, %esp			// pop function argument
 	
 	// Now the C page fault handler has returned and you must return
 	// to the trap time state.
 	// Push trap-time %eip onto the trap-time stack.
-	//
-	// Explanation:
-	//   We must prepare the trap-time stack for our eventual return to
-	//   re-execute the instruction that faulted.
-	//   Unfortunately, we can't return directly from the exception stack:
-	//   We can't call 'jmp', since that requires that we load the address
-	//   into a register, and all registers must have their trap-time
-	//   values after the return.
-	//   We can't call 'ret' from the exception stack either, since if we
-	//   did, %esp would have the wrong value.
-	//   So instead, we push the trap-time %eip onto the *trap-time* stack!
-	//   Below we'll switch to that stack and call 'ret', which will
-	//   restore %eip to its pre-fault value.
-	//
-	//   In the case of a recursive fault on the exception stack,
-	//   note that the word we're pushing now will fit in the
-	//   blank word that the kernel reserved for us.
-	//
+	/*
+	 * Explanation:
+	 *   We must prepare the trap-time stack for our eventual return to
+	 *   re-execute the instruction that faulted.
+	 *   Unfortunately, we can't return directly from the exception stack:
+	 *   We can't call 'jmp', since that requires that we load the address
+	 *   into a register, and all registers must have their trap-time
+	 *   values after the return.
+	 *   We can't call 'ret' from the exception stack either, since if we
+	 *   did, %esp would have the wrong value.
+	 *   So instead, we push the trap-time %eip onto the *trap-time* stack!
+	 *   Below we'll switch to that stack and call 'ret', which will
+	 *   restore %eip to its pre-fault value.
+	 *
+	 *   In the case of a recursive fault on the exception stack,
+	 *   note that the word we're pushing now will fit in the
+	 *   blank word that the kernel reserved for us.
+	*/
 	// Throughout the remaining code, think carefully about what
 	// registers are available for intermediate calculations.  You
 	// may find that you have to rearrange your code in non-obvious
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
-
+	// 目前user level fault handler已经返回了
+	/* 
+	 * return address 即trap time eip的值
+	 * 我们要做的就是将trap time eip的值写入trap time esp所指向的上一个trapframe
+	 * 其实就是在模拟stack调用过程
+	*/
+	movl 0x28(%esp), %eax;	// 获取trap time eip的值并存在%eax中
+	subl $0x4, 0x30(%esp);  // trap-time esp = trap-time esp - 4
+	movl 0x30(%esp), %edx;    // 将trap time esp的地址放入当前esp中
+	movl %eax, (%edx);   // 将trap time eip的值写入trap time esp所指向的位置的地址 
+	// 思考：为什么可以写入呢？
+	// 此时return address就已经设置好了 最后ret时可以找到目标地址了
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
+	addl $0x8, %esp;  // remove掉utf_err和utf_fault_va	
+	popal;			// pop掉general registers
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
+	addl $0x4, %esp; // remove掉trap time eip 因为我们已经设置好了
+	popfl;		 // restore eflags
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
+	popl	%esp; // %esp获取到了trap time esp的值
 
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+	ret;	// ret instruction 做了两件事
+		    // 1. pop off an address pointed by 当前esp
+			// 2. jump to that address

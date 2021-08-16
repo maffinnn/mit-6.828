@@ -29,12 +29,12 @@ duppage(envid_t dstenv, void *addr)
 
 	// This is NOT what you should do in your fork.
 	if ((r = sys_page_alloc(dstenv, addr, PTE_P|PTE_U|PTE_W)) < 0)
-		panic("sys_page_alloc: %e", r);
+		panic("sys_page_alloc: %e\n", r);
 	if ((r = sys_page_map(dstenv, addr, 0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
-		panic("sys_page_map: %e", r);
+		panic("sys_page_map: %e\n", r);
 	memmove(UTEMP, addr, PGSIZE);
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
-		panic("sys_page_unmap: %e", r);
+		panic("sys_page_unmap: %e\n", r);
 }
 
 envid_t
@@ -52,7 +52,7 @@ dumbfork(void)
 	// will return 0 instead of the envid of the child.
 	envid = sys_exofork();
 	if (envid < 0)
-		panic("sys_exofork: %e", envid);
+		panic("sys_exofork: %e\n", envid);
 	if (envid == 0) {
 		// We're the child.
 		// The copied value of the global variable 'thisenv'
@@ -73,7 +73,7 @@ dumbfork(void)
 
 	// Start the child environment running
 	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
-		panic("sys_env_set_status: %e", r);
+		panic("sys_env_set_status: %e\n", r);
 
 	return envid;
 }

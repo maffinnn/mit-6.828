@@ -53,7 +53,7 @@ struct PushRegs {
 	uint32_t reg_edx;
 	uint32_t reg_ecx;
 	uint32_t reg_eax;
-} __attribute__((packed));
+} __attribute__((packed));// 8*4 = 32bytes
 
 struct Trapframe {
 	struct PushRegs tf_regs;
@@ -76,10 +76,10 @@ struct Trapframe {
 
 struct UTrapframe {
 	/* information about the fault */
-	uint32_t utf_fault_va;	/* va for T_PGFLT, 0 otherwise */
-	uint32_t utf_err;
+	uint32_t utf_fault_va;	/* va for T_PGFLT, 0 otherwise */ //4 bytes
+	uint32_t utf_err;	// 4 bytes
 	/* trap-time return state */
-	struct PushRegs utf_regs;
+	struct PushRegs utf_regs; // 32 bytes
 	uintptr_t utf_eip;
 	uint32_t utf_eflags;
 	/* the trap-time stack to return to */

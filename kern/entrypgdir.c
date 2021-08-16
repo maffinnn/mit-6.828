@@ -29,6 +29,7 @@ pde_t entry_pgdir[NPDENTRIES] = {
 
 // Entry 0 of the page table maps to physical page 0, entry 1 to
 // physical page 1, etc.
+// 每一个page有4KB大小 == 0x1000
 __attribute__((__aligned__(PGSIZE)))
 pte_t entry_pgtable[NPTENTRIES] = {
 	0x000000 | PTE_P | PTE_W,

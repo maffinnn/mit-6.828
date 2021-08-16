@@ -18,6 +18,8 @@
  * so that -E_NO_MEM and E_NO_MEM are equivalent.
  */
 
+// fmt -- format
+// 
 static const char * const error_string[MAXERROR] =
 {
 	[E_UNSPECIFIED]	= "unspecified error",
@@ -41,12 +43,14 @@ static const char * const error_string[MAXERROR] =
  * Print a number (base <= 16) in reverse order,
  * using specified putch function and associated pointer putdat.
  */
+// padc --pad char
+// putdat --put digit at(??)
 static void
 printnum(void (*putch)(int, void*), void *putdat,
 	 unsigned long long num, unsigned base, int width, int padc)
 {
 	// first recursively print all preceding (more significant) digits
-	if (num >= base) {
+	if (num >= base) {// 非个位数 即least significant digit
 		printnum(putch, putdat, num / base, base, width - 1, padc);
 	} else {
 		// print any needed pad characters before first digit
@@ -60,6 +64,7 @@ printnum(void (*putch)(int, void*), void *putdat,
 
 // Get an unsigned int of various possible sizes from a varargs list,
 // depending on the lflag parameter.
+// va_arg returns the next argument in the va_list
 static unsigned long long
 getuint(va_list *ap, int lflag)
 {
@@ -88,6 +93,20 @@ getint(va_list *ap, int lflag)
 // Main function to format and print a string.
 void printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...);
 
+// 具体实现
+/* 知识点： 
+ register关键字：是给conpiler提示说被修饰的variable将会被heavily used so you recommended it be kept in a processor register if possible
+				  （现代compilers会自动帮我们做这件事）
+ 				 !!!注意： you can't take the address of a variable declared 'register'
+ const char* 与 char* 的区别：
+ 					char* 是一个mutable pointer to a mutable character/string
+					const char* 是一个mutable pointer to an immutable character/string. 所以下面fmt是可以进行++操作的
+					char* const 是一个immutable pointer(it cannot point to any other location) but the contents of location at which it points are mutable
+					const char* const 是一个immutable pointer to an immutable character/string
+*/
+// cprintf主要的算法 
+// putch调用了cons_putc()将最后process好的字符输出到终端上  并且increment *cnt
+// putch(int ch, int *cnt)
 void
 vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 {
@@ -95,16 +114,21 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 	register int ch, err;
 	unsigned long long num;
 	int base, lflag, width, precision, altflag;
-	char padc;
+	char padc; // padding char
 
 	while (1) {
-		while ((ch = *(unsigned char *) fmt++) != '%') {
-			if (ch == '\0')
+		while ((ch = *(unsigned char *) fmt++) != '%') {// 字符的一一比较
+			if (ch == '\0')// string读到末尾了 直接返回
 				return;
-			putch(ch, putdat);
+			putch(ch, putdat);// 普通的要打印的字符串(既不是%escape seq也不是末尾) 直接调用putch()打印 不向下执行
 		}
 
-		// Process a %-escape sequence
+		// Process a %-escape sequence 
+		/* 
+			c standard: int printf(const char* format, ...);
+			format: %[flags][width][.precision][length]specifier
+		*/
+		// 初始化
 		padc = ' ';
 		width = -1;
 		precision = -1;
@@ -123,6 +147,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			padc = '0';
 			goto reswitch;
 
+		// 这里它将precision和width一起处理了
 		// width field
 		case '1':
 		case '2':
@@ -134,14 +159,15 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		case '8':
 		case '9':
 			for (precision = 0; ; ++fmt) {
-				precision = precision * 10 + ch - '0';
+				precision = precision * 10 + ch - '0';// 支持超过10位的width
 				ch = *fmt;
 				if (ch < '0' || ch > '9')
 					break;
 			}
 			goto process_precision;
-
-		case '*':
+		// the width is not specified in the format string, 
+		// but as an additional integer value argument preceding the argument that has to be formatted
+		case '*': 
 			precision = va_arg(ap, int);
 			goto process_precision;
 
@@ -188,7 +214,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 				for (width -= strnlen(p, precision); width > 0; width--)
 					putch(padc, putdat);
 			for (; (ch = *p++) != '\0' && (precision < 0 || --precision >= 0); width--)
-				if (altflag && (ch < ' ' || ch > '~'))
+				if (altflag && (ch < ' ' || ch > '~'))// 非法处理
 					putch('?', putdat);
 				else
 					putch(ch, putdat);
@@ -215,10 +241,16 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
+			/*
+		original code:
 			putch('X', putdat);
 			putch('X', putdat);
 			putch('X', putdat);
 			break;
+			*/
+			num =  getuint(&ap, lflag);
+			base = 8;
+			goto number;
 
 		// pointer
 		case 'p':
@@ -245,7 +277,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// unrecognized escape sequence - just print it literally
 		default:
 			putch('%', putdat);
-			for (fmt--; fmt[-1] != '%'; fmt--)
+			for (fmt--; fmt[-1] != '%'; fmt--)// fmt[-1] == *(fmt - 1)
 				/* do nothing */;
 			break;
 		}
@@ -298,7 +330,6 @@ snprintf(char *buf, int n, const char *fmt, ...)
 {
 	va_list ap;
 	int rc;
-
 	va_start(ap, fmt);
 	rc = vsnprintf(buf, n, fmt, ap);
 	va_end(ap);

@@ -64,7 +64,7 @@ sys_exofork(void)
 {
 	envid_t ret;
 	asm volatile("int %2"
-		     : "=a" (ret)
+		     : "=a" (ret) // ouput register is eax holding 
 		     : "a" (SYS_exofork), "i" (T_SYSCALL));
 	return ret;
 }
@@ -75,7 +75,7 @@ int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
 envid_t	ipc_find_env(enum EnvType type);
 
 // fork.c
-#define	PTE_SHARE	0x400
+#define	PTE_SHARE	0x400  // the 10th bit in PTE
 envid_t	fork(void);
 envid_t	sfork(void);	// Challenge!
 

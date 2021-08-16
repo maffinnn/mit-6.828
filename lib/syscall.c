@@ -1,4 +1,8 @@
 // System call stubs.
+/*
+ * THIS IS WHAT THE APPLICATIONS SEE
+ * THE APIs THAT THE KERNEL PROVIDES FOR APPLICATIONS LEVEL
+*/
 
 #include <inc/syscall.h>
 #include <inc/lib.h>

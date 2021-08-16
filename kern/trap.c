@@ -72,7 +72,63 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	// init IDT with the addresses of all interrupt handlers
+	// declare function来获取function pointer
+	extern void int_divide();
+	extern void int_debug();
+	extern void int_nmi();
+	extern void int_brkpt();
+	extern void int_oflow();
+	extern void int_bound();
+	extern void int_illop();
+	extern void int_device();
+	extern void int_dblflt();
+	extern void int_tss();
+	extern void int_segnp();
+	extern void int_stack();
+	extern void int_gpflt();
+	extern void int_pgflt();
+	extern void int_fperr();
 
+	extern void int_syscall();
+
+	// external interrupy
+	extern void int_timer();
+	extern void int_kbd();
+	extern void int_serial();
+	extern void int_spurious();
+	extern void int_ide();
+	extern void int_error();
+
+	// 注册gate到idt表中 使用宏SETGATE(gate, istrap, sel(cs), off(eip), dpl)
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, int_divide, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, int_debug, 3);
+	SETGATE(idt[T_NMI], 0, GD_KT,int_nmi, 0);
+	// 注意： breakpoint是被user invoke的 因此最低权限应是ring3 而非ring0
+	SETGATE(idt[T_BRKPT], 0, GD_KT, int_brkpt, 3); 
+	SETGATE(idt[T_OFLOW], 0, GD_KT, int_oflow, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, int_bound, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, int_illop, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, int_device, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, int_dblflt, 0);
+	// T_COPROC reserved
+	SETGATE(idt[T_TSS], 0, GD_KT, int_tss, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, int_segnp, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, int_stack, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, int_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, int_pgflt, 0);
+	//T_RES reserved
+	SETGATE(idt[T_FPERR], 0, GD_KT, int_fperr, 0);
+	// syscall是 user invoke的 因此权是3
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, int_syscall, 3);
+	// external interrupt
+	SETGATE(idt[IRQ_OFFSET+IRQ_TIMER], 0, GD_KT, int_timer, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, int_kbd, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SERIAL], 0, GD_KT, int_serial, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SPURIOUS], 0, GD_KT, int_spurious, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_IDE], 0, GD_KT, int_ide, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_ERROR], 0, GD_KT, int_error, 0);
+	
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -108,18 +164,18 @@ trap_init_percpu(void)
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
-	ts.ts_iomb = sizeof(struct Taskstate);
+	thiscpu->cpu_ts.ts_esp0 = (uintptr_t)percpu_kstacks[thiscpu->cpu_id];
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
+	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
 					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	ltr(GD_TSS0 + (thiscpu->cpu_id<<3));
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -176,6 +232,31 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	if (tf->tf_trapno == T_PGFLT){
+		cprintf("T_PGFLT\n");
+		page_fault_handler(tf);
+		return;
+	}
+
+	if (tf->tf_trapno == T_BRKPT){
+		// cprintf("T_BRKPT\n");
+		print_trapframe(tf);
+		monitor(tf);
+		return;
+	}
+	
+	if (tf->tf_trapno == T_SYSCALL){
+		// 手册里写到syscall的返回值将交给%eax保存
+		// cprintf("T_SYSCALL\n");
+		tf->tf_regs.reg_eax = 
+			syscall(tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
+		return;
+	}
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -189,6 +270,12 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
+		// cprintf("Clock interrupt on irq 0\n");
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
@@ -222,13 +309,18 @@ trap(struct Trapframe *tf)
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
-	assert(!(read_eflags() & FL_IF));
+	/*	
+     * 如果上面setgate的第二个参数设置为1那么这里的assertion会fail（why）
+	*/
+	assert(!(read_eflags() & FL_IF)); 
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
+
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -256,8 +348,12 @@ trap(struct Trapframe *tf)
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
-	if (curenv && curenv->env_status == ENV_RUNNING)
+	if (curenv && curenv->env_status == ENV_RUNNING){
+		// cprintf("curenv->eip: %08x\ncurenv->esp: %08x\n", 
+		// 		curenv->env_tf.tf_eip
+		// 		, curenv->env_tf.tf_esp);
 		env_run(curenv);
+	}
 	else
 		sched_yield();
 }
@@ -270,10 +366,13 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
-
+	cprintf("fault_va = %08x\n", fault_va);
 	// Handle kernel-mode page faults.
-
 	// LAB 3: Your code here.
+	// 检查code segment register的lower 2 bits 的privilege level
+	if ((tf->tf_cs & 3) == 0){
+		panic("kernel-mode page fault\n");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
@@ -281,7 +380,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Call the environment's page fault upcall, if one exists.  Set up a
 	// page fault stack frame on the user exception stack (below
 	// UXSTACKTOP), then branch to curenv->env_pgfault_upcall.
-	//
+
 	// The page fault upcall might cause another page fault, in which case
 	// we branch to the page fault upcall recursively, pushing another
 	// page fault stack frame on top of the user exception stack.
@@ -309,10 +408,48 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 
-	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
-	env_destroy(curenv);
+	// 如果已经给curenv设置了env_pgfault_upcall的话 
+	if (curenv->env_pgfault_upcall){
+		struct UTrapframe* utf;
+		// 查看esp是否已经指向user exception stack了
+		if (tf->tf_esp<UXSTACKTOP && tf->tf_esp>=UXSTACKTOP-PGSIZE){
+			// 说明是一个recursive user page fault
+			// 那么就接着set up一个user page fault stack frame
+			// 这里-4是因为要预留一个4个byte scratch space
+			utf =(struct UTrapframe *)(tf->tf_esp-sizeof(struct UTrapframe)-4);
+			cprintf("recursive page fault\n");
+	    }
+		else{
+			// 第一次user page fault
+			// 那么让esp直接指向UXSTACKTOP-1
+			utf = (struct UTrapframe *)(UXSTACKTOP-sizeof(struct UTrapframe));
+		}
+		/*  检查是否发生以下状况
+		 *  1）没有page fault upcall 
+		 *  2）或是当前env没有allocate一个page给exception stack 
+		 *  3) 或是当前env的exception stack overflow了
+		 *  4）或是当前va是不可写的
+		*/
+		user_mem_assert(curenv, (void*)utf, sizeof(struct UTrapframe), PTE_W);
+		// 如果上面的检测通过了 将user trap frame写入user exception stack中
+		utf->utf_fault_va = fault_va;
+		utf->utf_err = tf->tf_err;
+		utf->utf_regs = tf->tf_regs;
+		utf->utf_eip = tf->tf_eip;
+		utf->utf_eflags = tf->tf_eflags;
+		utf->utf_esp = tf->tf_esp;
+		// 将eip指向page fault upcall入口地址(pfentry.S)
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+		// 将esp指向user exception stack地址
+		curenv->env_tf.tf_esp = (uintptr_t)utf;
+		env_run(curenv);
+
+	}else{
+		// Destroy the environment that caused the fault.
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);
+	}
 }
 
