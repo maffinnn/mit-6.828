@@ -24,7 +24,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
 	int err;
-	pg = (pg==NULL)?(void*)-1:pg;
+	pg = (pg==NULL)?(void*)UTOP:pg;
 	
 	if ((err = sys_ipc_recv(pg))==0){
 		// syscall succeeded 
@@ -60,7 +60,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	 * is called a null pointer constant." 
 	 * It also says that a character literal is an integer constant expression.
 	*/
-	pg = (pg==NULL)? (void*)-1:pg;
+	pg = (pg==NULL)? (void*)UTOP:pg;
 	while(1){
 		ret = sys_ipc_try_send(to_env, val, pg, perm);
 		if (ret == -E_IPC_NOT_RECV){

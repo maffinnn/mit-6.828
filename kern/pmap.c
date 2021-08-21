@@ -163,7 +163,7 @@ mem_init(void)
 	// 使用boot_alloc来给pages数组分配内存 boot_alloc内部实现pages对齐因此不用手动调用ROUNDUP()
 	pages = (struct PageInfo* ) boot_alloc(sizeof(struct PageInfo)*npages);
 	memset(pages, 0, sizeof(struct PageInfo)*npages);
-	cprintf("pages: %x\n", pages);
+	// cprintf("pages: %x\n", pages);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -171,7 +171,7 @@ mem_init(void)
 	// LAB 3: Your code here.
 	envs = (struct Env*) boot_alloc(sizeof(struct Env)*NENV);
 	memset(envs, 0, sizeof(struct Env)*NENV);
-	cprintf("envs: %x\n", envs);
+	// cprintf("envs: %x\n", envs);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -443,8 +443,6 @@ page_alloc(int alloc_flags)
 		struct PageInfo* cur = page_free_list;
 		page_free_list = page_free_list->pp_link;
 		cur->pp_link = NULL;
-		cnt++;
-		cprintf("alloc_cnt=%d\n", cnt);
 		if(alloc_flags & ALLOC_ZERO){
 			memset(page2kva(cur), 0, PGSIZE);
 		}	
@@ -462,7 +460,6 @@ void
 page_free(struct PageInfo *pp)
 {
 	// Fill this function in
-	cprintf("page_free called\n");
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
 	if (pp->pp_link!=NULL) 
@@ -850,7 +847,6 @@ user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 static void
 check_page_free_list(bool only_low_memory)
 {
-	cprintf("entering check_page_free_list\n");
 	struct PageInfo *pp;
 	unsigned pdx_limit = only_low_memory ? 1 : NPDENTRIES;
 	int nfree_basemem = 0, nfree_extmem = 0;

@@ -40,7 +40,6 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		* 否则会找不到handler的地址会page fault 然后recursive page fault直到overflow
 		* (事实上要stack overflow 需要很久...) 
 		*/
-		cprintf("pgfault_upcall: %08x\n", _pgfault_upcall);
 		if (sys_env_set_pgfault_upcall(0, _pgfault_upcall)<0){ 
 			panic("set_pgfault_handler: sys_env_set_pgfault_upcall fail\n");
 		}

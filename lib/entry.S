@@ -1,3 +1,6 @@
+/* 
+ * This is the entry point for kernel to enter user environment
+*/
 #include <inc/mmu.h>
 #include <inc/memlayout.h>
 

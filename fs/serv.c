@@ -15,20 +15,21 @@
 // for each open file.
 //
 // 1. The on-disk 'struct File' is mapped into the part of memory
-//    that maps the disk.  This memory is kept private to the file
-//    server.
+//    that maps the disk[0x10000000 - 0xd00000000].  
+// 	  This memory is kept *private* to the file server. 所有真实的files 类似于inode
 // 2. Each open file has a 'struct Fd' as well, which sort of
 //    corresponds to a Unix file descriptor.  This 'struct Fd' is kept
 //    on *its own page* in memory, and it is shared with any
-//    environments that have the file open.
+//    environments that have the file open. --> PTE_SHARE *public*
 // 3. 'struct OpenFile' links these other two structures, and is kept
-//    private to the file server.  The server maintains an array of
+//    *private* to the file server.  The server maintains an array of
 //    all open files, indexed by "file ID".  (There can be at most
 //    MAXOPEN files open concurrently.)  The client uses file IDs to
 //    communicate with the server.  File IDs are a lot like
 //    environment IDs in the kernel.  Use openfile_lookup to translate
 //    file IDs to struct OpenFile.
 
+// fs server 维护的一个映射， 将真实文件struct File和客户端打开的文件描述符struct Fd对应到一起
 struct OpenFile {
 	uint32_t o_fileid;	// file id
 	struct File *o_file;	// mapped descriptor for open file
@@ -48,6 +49,59 @@ struct OpenFile opentab[MAXOPEN] = {
 // Virtual address at which to receive page mappings containing client requests.
 union Fsipc *fsreq = (union Fsipc *)0x0ffff000;
 
+/*
+ * 					File System Environment Layout    
+ *													   Permissions
+ *                                                     kernel/user
+ *
+ *    4 Gig -------->  +------------------------------+
+ *                     |                              | RW/--
+ *                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *                     :              .               :
+ *                     :              .               :
+ *                     :              .               :
+ *                     |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| RW/--
+ *             		   |                              |
+ * UTOP,UENVS ------>  +------------------------------+ 0xeec00000
+ * UXSTACKTOP -/       |     User Exception Stack     | RW/RW  PGSIZE
+ *                     +------------------------------+ 0xeebff000
+ *                     |       Empty Memory (*)       | --/--  PGSIZE
+ *    USTACKTOP  --->  +------------------------------+ 0xeebfe000
+ *                     |      Normal User Stack       | RW/RW  PGSIZE
+ *                     +------------------------------+ 0xeebfd000
+ *                     .                              .
+ *                     +------------------------------+ 0xd0400000
+ * 					   |        1024 struct Fd*       |
+ *                     |  	      PTE_SHARE           | 1024*PGSIZE
+ *  DISKMAP + DISKSIZE +------------------------------+ 0xd0000000
+ *                     |                              |
+ * 					   |	                          |
+ * 					   |      3Gib IDE Disk Map       |
+ *                     |							  |					----> any manipulation on this area of memory 
+ * 	   bitmap      --> | . . . . . . . . . . . . . .  | 0x10002000     	     would mean manipulating on the 'real' files on disk
+ *     super block --> | . . . . . . . . . . . . . .  | 0x10001000
+ * 					   |   							  | 
+ * 	       DISKMAP---> +------------------------------+ 0x10000000
+ * 					   |     union Fsipc *Fsreq       | RW/RW PGSIZE
+ * 					   +------------------------------+ 0x0fff0000
+ * 					   :              .               :
+ *					   :              .               :
+ *                     |       open file table        |
+ * 					   +~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+ 0x00805060	
+ * 					   :              .               :
+ *                     |     Program Data & Heap      |
+ *    UTEXT -------->  +------------------------------+ 0x00800000
+ *    PFTEMP ------->  |       Empty Memory (*)       |        PTSIZE
+ *                     |                              |
+ *    UTEMP -------->  +------------------------------+ 0x00400000      --+
+ *                     |       Empty Memory (*)       |                   |
+ *                     | - - - - - - - - - - - - - - -|                   |
+ *                     |  User STAB Data (optional)   |                 PTSIZE
+ *    USTABDATA ---->  +------------------------------+ 0x00200000        |
+ *                     |       Empty Memory (*)       |                   |
+ *    0 ------------>  +------------------------------+                 --+
+ *
+*/ 
 void
 serve_init(void)
 {
@@ -209,12 +263,24 @@ serve_read(envid_t envid, union Fsipc *ipc)
 {
 	struct Fsreq_read *req = &ipc->read;
 	struct Fsret_read *ret = &ipc->readRet;
+	int r;
 
 	if (debug)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+	struct OpenFile* of;
+	if ((r = openfile_lookup(envid, req->req_fileid, &of))<0)
+		return r;
+	size_t req_n = req->req_n>PGSIZE?PGSIZE:req->req_n;
+	// read from the current seek position
+	if ((r = file_read(of->o_file, ret->ret_buf ,req_n, of->o_fd->fd_offset))<0)
+		return r;
+	/*
+	 *注意要处理offset指针
+	*/
+	of->o_fd->fd_offset += r;
+	return r;
 }
 
 
@@ -229,7 +295,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile* of; int r; size_t reqn;
+	// 找到对应的真实file
+	if ((r = openfile_lookup(envid, req->req_fileid, &of))<0)
+		return r;
+	// extend the file if necessary
+	if ((req->req_n+of->o_fd->fd_offset%BLKSIZE)>BLKSIZE)
+		file_set_size(of->o_file, of->o_file->f_size+req->req_n);
+
+	if((r = file_write(of->o_file, req->req_buf, req->req_n, of->o_fd->fd_offset))<0)
+		return r;
+	of->o_fd->fd_offset+=r;
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -291,6 +368,7 @@ fshandler handlers[] = {
 	[FSREQ_SYNC] =		serve_sync
 };
 
+// 循环监听其他env的request
 void
 serve(void)
 {
@@ -337,7 +415,7 @@ umain(int argc, char **argv)
 	outw(0x8A00, 0x8A00);
 	cprintf("FS can do I/O\n");
 
-	serve_init();
+	serve_init(); // init OpenFile array
 	fs_init();
         fs_test();
 	serve();

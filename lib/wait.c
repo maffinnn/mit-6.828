@@ -4,6 +4,7 @@
 void
 wait(envid_t envid)
 {
+	// cprintf("[%08x] called wait for child %08x\n", thisenv->env_id, envid);
 	const volatile struct Env *e;
 
 	assert(envid != 0);

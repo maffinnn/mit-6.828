@@ -56,6 +56,10 @@ sys_env_destroy(envid_t envid)
 	struct Env *e;
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
+	// if (e== curenv)
+	// 	cprintf("[%08x] exiting gracefully\n", curenv->env_id);
+	// else 
+	// 	cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
 	return 0;
 }
@@ -122,9 +126,9 @@ sys_env_set_status(envid_t envid, int status)
 		return ret;
 	}
 
-	if (status != ENV_RUNNABLE&&status!=ENV_NOT_RUNNABLE)
+	if (status != ENV_RUNNABLE && status!=ENV_NOT_RUNNABLE)
 		return -E_INVAL;
-
+	
 	e->env_status = status;
 	return 0;
 
@@ -143,7 +147,21 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	struct Env *e; int r;
+	if ((r = envid2env(envid,&e, 1))<0)
+		return r;
+
+	e->env_tf.tf_ds = tf->tf_ds;
+	e->env_tf.tf_trapno = tf->tf_trapno;
+	e->env_tf.tf_err = tf->tf_err;
+	e->env_tf.tf_eip = tf->tf_eip;
+	e->env_tf.tf_cs = tf->tf_cs|3;
+	e->env_tf.tf_eflags = (tf->tf_eflags|FL_IF)&(~FL_IOPL_3);
+	e->env_tf.tf_esp = tf->tf_esp;
+	e->env_tf.tf_ss = tf->tf_ss;
+	e->env_tf.tf_regs = tf->tf_regs;
+
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -197,17 +215,14 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 
 	// LAB 4: Your code here.
 	struct Env* e; int ret;
-	if ((ret = envid2env(envid, &e, 1))<0){
+	if ((ret = envid2env(envid, &e, 1))<0)
 		return ret;
-	}
 
 	if ((uintptr_t)va>=UTOP||(uintptr_t)va%PGSIZE) 
 		return -E_INVAL;
 	
-	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
-	if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)){
-		 return -E_INVAL;
-	}
+	if (!(perm&PTE_P)||!(perm&PTE_P))  return -E_INVAL;
+	if (perm&~PTE_SYSCALL) return -E_INVAL;
 
 	struct PageInfo* pp = page_alloc(ALLOC_ZERO);
 	if (!pp) return -E_NO_MEM;
@@ -216,7 +231,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		page_free(pp);
 		return ret;
 	}
-	// cprintf("sys_page_alloc at addr: %08x\n", va);
+	
 	return 0;
 }
 
@@ -250,33 +265,25 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct Env* srcenv, * dstenv;
 	int ret;
 	pte_t* pg_tbl_entry;
-	if (envid2env(srcenvid, &srcenv, 1)<0||envid2env(dstenvid, &dstenv, 1)<0){
+	if (envid2env(srcenvid, &srcenv, 1)<0||envid2env(dstenvid, &dstenv, 1)<0)
 		return -E_BAD_ENV;
-	}
 
-	if ((uintptr_t)srcva>=UTOP||(uintptr_t)dstva>=UTOP||(uintptr_t)srcva%PGSIZE||(uintptr_t)dstva%PGSIZE){
+	if ((uintptr_t)srcva>=UTOP||(uintptr_t)dstva>=UTOP||(uintptr_t)srcva%PGSIZE||(uintptr_t)dstva%PGSIZE)
 		return -E_INVAL;
-	}	
+	
 	// check permissions
-	if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)){
-		 return -E_INVAL;
-	}
-	if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)){
-		return -E_INVAL;
-	}
-
+	if (!(perm&PTE_U)||!(perm&PTE_P)) return -E_INVAL;
+	if (perm&~PTE_SYSCALL) return -E_INVAL;
+	
 	struct PageInfo* pp = page_lookup(srcenv->env_pgdir, srcva, &pg_tbl_entry);
 	// src physical page is not found at src env
 	if (!pp) return -E_INVAL;
 	// 在srcenv中存在一个要找的物理页面
-	if ((perm&PTE_W)&&(!(*pg_tbl_entry&PTE_W))){
-		return -E_INVAL;
-	}
+	if ((perm&PTE_W)&&(!(*pg_tbl_entry&PTE_W))) return -E_INVAL;
 
-	if((ret = page_insert(dstenv->env_pgdir, pp, dstva, perm))<0){
+	if((ret = page_insert(dstenv->env_pgdir, pp, dstva, perm))<0)
 		return -E_NO_MEM;
-	}
-
+	
 	return 0;
 	
 }
@@ -351,41 +358,31 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct PageInfo* pp; pte_t* pte; int ret;
 	if ((envid2env(envid, &e, 0)<0))// checkperm = 0 means allowed to send IPC messages to any other env
 		return -E_BAD_ENV;
-
-	e->env_ipc_perm = 0;
-
-	if (e->env_ipc_recving==0){ 
+	if (e->env_ipc_recving == 0||e->env_ipc_from != 0)
 		// env_ipc_recving = 0  means that env has not prepared receving
 		// the receiver is not blocked at sys_ipc_recv or other environment managed to send first
 		return -E_IPC_NOT_RECV;
-	} 
 
-	do {
-		if (e->env_ipc_dstva == (void*)-1) break; // receiver didnot ask for a page
-		// 存在dstva 但srcva not provided
-		if (srcva == (void*)-1) return -E_INVAL;
-		if (srcva<(void*)UTOP && srcva>=(void*)0){
-			if ((uintptr_t)srcva%PGSIZE) return -E_INVAL; // not aligned
-			 // not allowable permission
-			if (perm&~(PTE_P|PTE_U|PTE_W|PTE_AVAIL)) return -E_INVAL;
-			if ((perm&(PTE_U|PTE_P))!=(PTE_U|PTE_P)) return -E_INVAL;
+	if (srcva<(void*)UTOP){
+		if ((uintptr_t)srcva%PGSIZE) return -E_INVAL; // not aligned
+		// not allowable permission
+		if (!(perm&PTE_U)||!(perm&PTE_P)) return -E_INVAL;
+		if (perm&~(PTE_SYSCALL)) return -E_INVAL;
+		pp = page_lookup(curenv->env_pgdir, srcva, &pte);
+		// send page currently mapped at srcva
+		if (!pte||!pp) return -E_INVAL;
+		if ((perm&PTE_W)&&(!(*pte&PTE_W))) return -E_INVAL;
 
-			pp = page_lookup(curenv->env_pgdir,srcva, &pte);
-			// send page currently mapped at srcva
-			if (!pte||!pp) return -E_INVAL;
-			if ((perm&PTE_W)&&(!(*pte&PTE_W))) return -E_INVAL;
-			
-			if ((ret = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)<0)){
+		if (e->env_ipc_dstva){
+			if ((ret = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)<0))
 				return ret;
-			}
+			e->env_ipc_perm = perm;
 		}
-	}while(0);
-
+	}
 	// mapping succeeded
 	e->env_ipc_recving = 0; // to block future sends
 	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_value = value;
-	e->env_ipc_perm = perm;
 	e->env_status = ENV_RUNNABLE;
 	/*
 	 * 给e这个进程的返回值
@@ -411,17 +408,15 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	if ((dstva<(void*)UTOP && dstva >= (void*)0)|| dstva == (void*)-1){
-		if ((dstva != (void*)-1) &&((uintptr_t)dstva%PGSIZE))
-			return -E_INVAL; // not page aligned
-		curenv->env_ipc_recving = 1;
-		curenv->env_ipc_dstva = dstva;
-		// 所谓blocking就是不允许当前进程继续向下执行
-		curenv->env_status = ENV_NOT_RUNNABLE;
-		sched_yield();
-		return 0;
+	if ((uintptr_t)dstva < UTOP&&((uintptr_t)dstva%PGSIZE)) {
+			return -E_INVAL;
 	}
-	return -E_INVAL;
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_ipc_recving = 1;
+	curenv->env_ipc_from = 0;
+	sched_yield();
+	return 0;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -473,10 +468,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_ipc_recv:
 		// cprintf("SYS_ipc_recv\n");
 		return sys_ipc_recv((void*)a1);
+	case SYS_env_set_trapframe:
+		// cprintf("SYS_env_set_trapframe");
+		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe* )a2);
 	default:
 		// cprintf("invalid syscall\n");
 		return -E_INVAL;
 	}
 
 }
-

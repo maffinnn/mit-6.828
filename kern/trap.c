@@ -233,7 +233,6 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	if (tf->tf_trapno == T_PGFLT){
-		cprintf("T_PGFLT\n");
 		page_fault_handler(tf);
 		return;
 	}
@@ -278,8 +277,18 @@ trap_dispatch(struct Trapframe *tf)
 	}
 
 	// Handle keyboard and serial interrupts.
+	// kdb_intr() and  serial_intr() 已经在kern/console.c 实现了 这里只要调用这两个函数即可
 	// LAB 5: Your code here.
-
+	if (tf->tf_trapno== IRQ_OFFSET+IRQ_KBD){
+		lapic_eoi();
+		kbd_intr();
+		return;
+	}
+	if (tf->tf_trapno == IRQ_OFFSET+IRQ_SERIAL){
+		lapic_eoi();
+		serial_intr();
+		return;
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -366,7 +375,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
-	cprintf("fault_va = %08x\n", fault_va);
+	// cprintf("[%08x] fault_va = %08x\n", curenv->env_id, fault_va);
 	// Handle kernel-mode page faults.
 	// LAB 3: Your code here.
 	// 检查code segment register的lower 2 bits 的privilege level
@@ -417,7 +426,6 @@ page_fault_handler(struct Trapframe *tf)
 			// 那么就接着set up一个user page fault stack frame
 			// 这里-4是因为要预留一个4个byte scratch space
 			utf =(struct UTrapframe *)(tf->tf_esp-sizeof(struct UTrapframe)-4);
-			cprintf("recursive page fault\n");
 	    }
 		else{
 			// 第一次user page fault

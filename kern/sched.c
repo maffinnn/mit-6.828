@@ -33,14 +33,14 @@ sched_yield(void)
 	for (int cnt = 0; cnt<NENV; cnt++, i++){
 		i = i%NENV;
 		if (envs[i].env_status == ENV_RUNNABLE){
-			// cprintf("CPU[%d] sched_yield: run env [%08x]\n", cpunum(), envs[i].env_id);
+			// cprintf("sched_yield: run env [%08x]\n", envs[i].env_id);
 			env_run(&envs[i]);
 			return;
 		}
 	}
 
 	if (curenv&&(curenv->env_status == ENV_RUNNING)){ 
-		// cprintf("CPU[%d] sched_yield: run env [%08x]\n", cpunum(), curenv->env_id);
+		// cprintf("sched_yield: run curenv [%08x]\n", curenv->env_id);
 		env_run(curenv);
 		return;
 	}

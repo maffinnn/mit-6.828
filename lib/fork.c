@@ -76,8 +76,21 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	void* addr = (void*)(pn*PGSIZE);
 	// cprintf("[%08x] called duppage\nduplicate page at %08x\n", sys_getenvid(), addr);
-
-	if(uvpt[pn]&PTE_W||uvpt[pn]&PTE_COW){
+	int perm;
+	/*
+	 * file descriptor 在0xd0000000这个位置及往上 
+	 * 当且仅当一个fd是in use的状态时, 一个file descriptor table page才会被映射
+	 * 我们需要share file descriptor state across fork and spawn, 
+	 * 这样pipe才能正常执行 
+     * 否则如果仅仅是COW的话 得到的fd都是副本 那么使用时就会出问题
+	*/
+	if (uvpt[pn]&PTE_SHARE){
+		// cprintf("page at %08x is PTE_SHARE\n", addr);
+		r = sys_page_map(0, addr, envid, addr, (uvpt[pn]&PTE_SYSCALL));
+		if (r<0) return r;
+	}	
+	else {
+		if (uvpt[pn]&PTE_W||uvpt[pn]&PTE_COW){
 		/*
 		 * 这里f父进程必须要先做好给子进程的mapping后再remmap父进程自己的这个page
 		 * 原因: 如果在子进程写如page之前, 父进程对这个page做了修改
@@ -85,17 +98,18 @@ duppage(envid_t envid, unsigned pn)
       	 * 于是子进程再写的时候page里的内容也就不会被corruped（依旧保持父进程刚刚fork完后的状态）
 		 * 做到父子进程完全隔离
 		 */
-		r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_U|PTE_P); // not writable
-		if (r<0) return r;
-		// 修改父进程的page的权限
-		r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_U|PTE_P); // not writable
-		if (r<0) return r;
-	}
-	else {
-		if ((r=sys_page_map(0, addr, envid, addr, PTE_P|PTE_U)<0)){// read only
-			return r;
+			r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_U|PTE_P); // not writable
+			if (r<0) return r;
+			// 修改父进程的page的权限
+			r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_U|PTE_P); // not writable
+			if (r<0) return r;
+		}
+		else {
+			if ((r=sys_page_map(0, addr, envid, addr, PTE_P|PTE_U)<0))// read only
+				return r;
 		}
 	}
+
 	return 0;
 
 }
@@ -121,7 +135,7 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	// cprintf("[%08x] called fork\n", sys_getenvid());
-	int r; size_t pn;
+	int r; uintptr_t addr;
 	set_pgfault_handler(pgfault);
 
 	envid_t envid = sys_exofork();
@@ -137,14 +151,9 @@ fork(void)
 	}
 	
 	// duplicate parent address space
-	/*
-	*
-	*/
-	cprintf("duppage parent addr\n");
-
-	for (pn=PGNUM(UTEXT); pn<PGNUM(USTACKTOP); pn++){
-		if ((uvpd[pn>>10]&PTE_P)&&(uvpt[pn]&PTE_P)){
-			duppage(envid, pn);
+	for (addr = 0;addr<USTACKTOP; addr+=PGSIZE){
+		if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)){
+			duppage(envid, PGNUM(addr));
 		}
 	}
 	// allocate user exception stack

@@ -433,6 +433,13 @@ env_create(uint8_t *binary, enum EnvType type)
 	}
 	load_icode(e, binary);
 	e->env_type = type;
+	// setting io previlege level for file system environment
+	if (type == ENV_TYPE_FS){
+		e->env_tf.tf_eflags |= FL_IOPL_3;
+		cprintf("fs env [%08x]\n", e->env_id);
+	}
+	else 
+		e->env_tf.tf_eflags |= FL_IOPL_0;
 
 }
 

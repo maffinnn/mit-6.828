@@ -97,7 +97,7 @@ void printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...);
 /* 知识点： 
  register关键字：是给conpiler提示说被修饰的variable将会被heavily used so you recommended it be kept in a processor register if possible
 				  （现代compilers会自动帮我们做这件事）
- 				 !!!注意： you can't take the address of a variable declared 'register'
+ 				 	注意： you can't take the address of a variable declared 'register'
  const char* 与 char* 的区别：
  					char* 是一个mutable pointer to a mutable character/string
 					const char* 是一个mutable pointer to an immutable character/string. 所以下面fmt是可以进行++操作的

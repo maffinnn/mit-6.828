@@ -57,6 +57,8 @@ fd_alloc(struct Fd **fd_store)
 		fd = INDEX2FD(i);
 		if ((uvpd[PDX(fd)] & PTE_P) == 0 || (uvpt[PGNUM(fd)] & PTE_P) == 0) {
 			*fd_store = fd;
+			if (debug) 
+				cprintf("[%08x] alloc fd %d\n", thisenv->env_id, i);
 			return 0;
 		}
 	}
@@ -173,6 +175,7 @@ close_all(void)
 int
 dup(int oldfdnum, int newfdnum)
 {
+	// cprintf("[%08x] called dup\n", thisenv->env_id);
 	int r;
 	char *ova, *nva;
 	pte_t pte;
