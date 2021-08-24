@@ -62,6 +62,7 @@ bootmain(void)
 
 	// call the entry point from the ELF header
 	// note: does not return!
+	// (void (*)(void) 强转成返回值为空参数为空的函数指针
 	((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:
@@ -73,6 +74,7 @@ bad:
 
 // Read 'count' bytes at 'offset' from kernel into physical address 'pa'.
 // Might copy more than asked
+// 这里readseg是从磁盘中读取而非memory中
 void
 readseg(uint32_t pa, uint32_t count, uint32_t offset)
 {

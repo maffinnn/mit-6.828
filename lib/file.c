@@ -4,6 +4,7 @@
 
 #define debug 0
 
+// shared the fsipcbuf page at virtual address 0x00806000
 union Fsipc fsipcbuf __attribute__((aligned(PGSIZE)));
 
 // Send an inter-environment request to the file server, and wait for
@@ -12,6 +13,16 @@ union Fsipc fsipcbuf __attribute__((aligned(PGSIZE)));
 // type: request code, passed as the simple integer IPC value.
 // dstva: virtual address at which to receive reply page, 0 if none.
 // Returns result from the file server.
+char* fsipctype[] = {
+	"FSREQ_OPEN",
+	"FSREQ_SET_SIZE",
+	"FSREQ_READ",
+	"FSREQ_WRITE",
+	"FSREQ_STAT",
+	"FSREQ_FLUSH",
+	"FSREQ_REMOVE",
+	"FSREQ_SYNC",
+};
 static int
 fsipc(unsigned type, void *dstva)
 {
@@ -22,7 +33,7 @@ fsipc(unsigned type, void *dstva)
 	static_assert(sizeof(fsipcbuf) == PGSIZE);
 
 	if (debug)
-		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
+		cprintf("[%08x] fsipc %s %08x\n", thisenv->env_id, fsipctype[type-1], *(uint32_t *)&fsipcbuf);
 
 	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, dstva, NULL);
@@ -34,6 +45,7 @@ static ssize_t devfile_write(struct Fd *fd, const void *buf, size_t n);
 static int devfile_stat(struct Fd *fd, struct Stat *stat);
 static int devfile_trunc(struct Fd *fd, off_t newsize);
 
+// dev stands for device
 struct Dev devfile =
 {
 	.dev_id =	'f',
@@ -63,11 +75,15 @@ open(const char *path, int mode)
 	//
 	// (fd_alloc does not allocate a page, it just returns an
 	// unused fd address.  Do you need to allocate a page?)
+	// struct Fd* is in fact a virtual concept that does not have actual memory space allocated to it
+	// the real thing is struct File* which is connected with fd by struct OpenFile* in the fs serve 
+	// and open oepration does not require any read/write operation on the file which renders 
+	// the allocation of pages in memory unnecessary
 	//
 	// Return the file descriptor index.
 	// If any step after fd_alloc fails, use fd_close to free the
 	// file descriptor.
-
+	// cprintf("[%08x] called open\n", thisenv->env_id);
 	int r;
 	struct Fd *fd;
 
@@ -141,7 +157,13 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	if (n>sizeof(fsipcbuf.write.req_buf))
+		n=sizeof(fsipcbuf.write.req_buf);
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	memmove(fsipcbuf.write.req_buf, buf, n);
+	return fsipc(FSREQ_WRITE, NULL);
+
 }
 
 static int

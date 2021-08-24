@@ -1,7 +1,7 @@
 // test user-level fault handler -- alloc pages to fix faults
 
 #include <inc/lib.h>
-
+#include <inc/x86.h>
 void
 handler(struct UTrapframe *utf)
 {
@@ -11,9 +11,10 @@ handler(struct UTrapframe *utf)
 	cprintf("fault %x\n", addr);
 	if ((r = sys_page_alloc(0, ROUNDDOWN(addr, PGSIZE),
 				PTE_P|PTE_U|PTE_W)) < 0)
-		panic("allocating at %x in page fault handler: %e", addr, r);
-	snprintf((char*) addr, 100, "this string was faulted in at %x", addr);
+		panic("allocating at %x in page fault handler: %e\n", addr, r);
+	snprintf((char*) addr, 100, "this string was faulted in at %x\n", addr);
 }
+
 
 void
 umain(int argc, char **argv)

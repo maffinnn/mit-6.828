@@ -162,6 +162,9 @@ mpconfig(struct mp **pmp)
 	return conf;
 }
 
+// 在booting up APs之前. bootstrap processor需要先收集并记录multiporcessor系统的相关信息
+// e.g. cpu个数 它们的APIC id，以及 LAPiC单元的MMIO映射地址
+// mp_init这个function就是将放置在BIOS区域内的MP configuration table给读取出来 
 void
 mp_init(void)
 {

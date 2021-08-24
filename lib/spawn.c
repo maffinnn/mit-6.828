@@ -135,7 +135,6 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e", r);
-
 	return child;
 
 error:
@@ -267,7 +266,7 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 	int i, r;
 	void *blk;
 
-	//cprintf("map_segment %x+%x\n", va, memsz);
+	// cprintf("map_segment %x+%x\n", va, memsz);
 
 	if ((i = PGOFF(va))) {
 		va -= i;
@@ -278,7 +277,7 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 
 	for (i = 0; i < memsz; i += PGSIZE) {
 		if (i >= filesz) {
-			// allocate a blank page
+			// allocate a blank page bss segment
 			if ((r = sys_page_alloc(child, (void*) (va + i), perm)) < 0)
 				return r;
 		} else {
@@ -302,6 +301,13 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	void* addr; int r;
+	for (addr = 0; addr<(void*)USTACKTOP; addr+=PGSIZE){
+		if ((uvpd[PDX(addr)]&PTE_P) && (uvpt[PGNUM(addr)]&PTE_P) && (uvpt[PGNUM(addr)]&PTE_SHARE)){
+			if ((r = sys_page_map(0, addr, child, addr, (uvpt[PGNUM(addr)]&PTE_SYSCALL)))<0)
+				return r;
+		}
+	}
 	return 0;
 }
 

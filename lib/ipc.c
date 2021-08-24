@@ -4,7 +4,7 @@
 
 // Receive a value via IPC and return it.
 // If 'pg' is nonnull, then any page sent by the sender will be mapped at
-//	that address.
+//	that address. -1 to indicate null page
 // If 'from_env_store' is nonnull, then store the IPC sender's envid in
 //	*from_env_store.
 // If 'perm_store' is nonnull, then store the IPC sender's page permission
@@ -23,8 +23,22 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	panic("ipc_recv not implemented");
-	return 0;
+	int err;
+	pg = (pg==NULL)?(void*)UTOP:pg;
+	
+	if ((err = sys_ipc_recv(pg))==0){
+		// syscall succeeded 
+		if (from_env_store)
+			*from_env_store = thisenv->env_ipc_from;
+		if (perm_store)
+			*perm_store = thisenv->env_ipc_perm;
+	}
+	else{
+		if (from_env_store) *from_env_store = 0;
+		if (perm_store) *perm_store = 0;
+		return err;
+	}
+	return thisenv->env_ipc_value;
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -39,7 +53,25 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	panic("ipc_send not implemented");
+	int ret;
+	/*
+	 * C99:It says "An integer constant expression with the value 0, 
+	 * or such an expression cast to type void *,
+	 * is called a null pointer constant." 
+	 * It also says that a character literal is an integer constant expression.
+	*/
+	pg = (pg==NULL)? (void*)UTOP:pg;
+	while(1){
+		ret = sys_ipc_try_send(to_env, val, pg, perm);
+		if (ret == -E_IPC_NOT_RECV){
+			sys_yield();
+		}
+		else if (ret == 0)
+			return; // succeeded
+		else
+			panic("ipc_send: %e\n", ret);
+	}
+		
 }
 
 // Find the first environment of the given type.  We'll use this to

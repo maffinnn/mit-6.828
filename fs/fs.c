@@ -62,7 +62,18 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	uint32_t blockno;
+	for (blockno = 0; blockno < super->s_nblocks; blockno++){
+		// block 0  是boot sector 和 partition table
+		// block 1 是SuperBlock
+		if (block_is_free(blockno)){
+			// mark the block as in-use
+			bitmap[blockno/32]^=1<<(blockno%32);
+			// flush it back to disk
+			flush_block(bitmap);
+			return blockno;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -103,15 +114,21 @@ fs_init(void)
 		ide_set_disk(1);
 	else
 		ide_set_disk(0);
+	// block cache 做好3Gb的disk映射
 	bc_init();
 
 	// Set "super" to point to the super block.
+	// super 指向va mapped的superblock
+	// diskaddr 返回the virtual address of the block
 	super = diskaddr(1);
+	cprintf("super addr %08x\n", super);
 	check_super();
 
 	// Set "bitmap" to the beginning of the first bitmap block.
+	// 位图块存放在Block2中 每一个bit标记一个block是否是free的
 	bitmap = diskaddr(2);
 	check_bitmap();
+	cprintf("bitmap addr %08x\n", bitmap);
 	
 }
 
@@ -131,11 +148,47 @@ fs_init(void)
 //
 // Analogy: This is like pgdir_walk for files.
 // Hint: Don't forget to clear any block you allocate.
+// filebno是offset in the File 
+// diskbno 是offset on the disk
+// 在手册中写道： for simiplicity we will use this one File structure to represent file meta-data 
+// 				as it appears *both on disk and in memory*
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+       // LAB 5: Your code here
+	   // out of bound
+	   int r;
+	   if (filebno >= NDIRECT + NINDIRECT) return -E_INVAL;
+
+	   if (filebno<NDIRECT){
+		   if (ppdiskbno)
+		   		*ppdiskbno = &f->f_direct[filebno];
+			return 0;
+	   }
+	   else {
+		   // filebno 在 NINDIRECT 里
+		   if (f->f_indirect==0){
+			   // 还未分配一个indirect block给这个file
+			   if(alloc){
+				   // 分配一个block来hold indirect pointers
+				   if ((r = alloc_block())<0)
+						return -E_NO_DISK;
+					f->f_indirect = r;
+				   memset(diskaddr(f->f_indirect), 0, BLKSIZE);
+				   flush_block(diskaddr(f->f_indirect));
+			   }
+			   else	
+			   		//找不到
+			   		return -E_NOT_FOUND;
+		   }
+	   }
+		// 已经分配了一个indirect block
+	if (ppdiskbno){
+		uint32_t* f_indirect_ptr = diskaddr(f->f_indirect);
+		*ppdiskbno = &f_indirect_ptr[filebno-NDIRECT];
+	}
+	return 0;
+      
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -149,8 +202,21 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-       // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+    // LAB 5: Your code here.
+	uint32_t* pdiskbno; int r;
+	if ((r = file_block_walk(f,filebno, &pdiskbno, 1))<0){
+		return r;
+	}
+	if (*pdiskbno==0){
+		if ((r = alloc_block())<0){
+			return -E_NO_DISK;
+		}
+		*pdiskbno = r;
+		memset(diskaddr(*pdiskbno), 0, BLKSIZE);
+		flush_block(diskaddr(*pdiskbno));
+	}
+	*blk = diskaddr(*pdiskbno);
+    return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -439,6 +505,7 @@ file_flush(struct File *f)
 			continue;
 		flush_block(diskaddr(*pdiskbno));
 	}
+	// flush the meta data of the file f
 	flush_block(f);
 	if (f->f_indirect)
 		flush_block(diskaddr(f->f_indirect));
