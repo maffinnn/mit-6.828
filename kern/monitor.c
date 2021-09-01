@@ -318,8 +318,6 @@ monitor(struct Trapframe *tf)
 
 	// ²âÊÔ
 	// mon_backtrace(0, 0, 0);
-
-
 	while (1) {
 		buf = readline("K> ");
 		if (buf != NULL)

@@ -29,6 +29,7 @@ sched_yield(void)
 	// below to halt the cpu.
                             
 	// LAB 4: Your code here.
+
 	int i = (curenv)?(ENVX(curenv->env_id)+1):0;
 	for (int cnt = 0; cnt<NENV; cnt++, i++){
 		i = i%NENV;

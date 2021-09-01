@@ -71,7 +71,8 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	cprintf("gdt: %08x\n", PADDR(gdt));
+	cprintf("idt: %08x\n", PADDR(idt));
 	// LAB 3: Your code here.
 	// init IDT with the addresses of all interrupt handlers
 	// declare functionÀ´»ñÈ¡function pointer
@@ -273,6 +274,7 @@ trap_dispatch(struct Trapframe *tf)
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
 		// cprintf("Clock interrupt on irq 0\n");
 		lapic_eoi();
+		time_tick();
 		sched_yield();
 		return;
 	}

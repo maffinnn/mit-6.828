@@ -1,3 +1,11 @@
+/*
+ * To perform PCI initialisation during boot, PCI code walks the PCI bus looking for devices.
+ * When it finds a device, it reads its vendor ID and device ID and uses these two values as a key to search the pci_attach_vendor array.
+ * The array is composed of struct pci_driver entries
+ * 
+ * If the discovered device's vendor ID and device ID match an entry in the array, the PCI code calls that entry's attachfn to perform
+ * device initialisation
+*/
 #include <inc/x86.h>
 #include <inc/assert.h>
 #include <inc/string.h>
@@ -31,6 +39,7 @@ struct pci_driver pci_attach_class[] = {
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device. key1
 // and key2 should be the vendor ID and device ID respectively
 struct pci_driver pci_attach_vendor[] = {
+	{ PCI_E1000_VENDOR_ID, PCI_E1000_DEVICE_ID, &pci_e1000_attach },
 	{ 0, 0, 0 },
 };
 

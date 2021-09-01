@@ -121,14 +121,14 @@ fs_init(void)
 	// super 指向va mapped的superblock
 	// diskaddr 返回the virtual address of the block
 	super = diskaddr(1);
-	cprintf("super addr %08x\n", super);
-	check_super();
+	// cprintf("super addr %08x\n", super);
+	// check_super();
 
 	// Set "bitmap" to the beginning of the first bitmap block.
 	// 位图块存放在Block2中 每一个bit标记一个block是否是free的
 	bitmap = diskaddr(2);
-	check_bitmap();
-	cprintf("bitmap addr %08x\n", bitmap);
+	// check_bitmap();
+	// cprintf("bitmap addr %08x\n", bitmap);
 	
 }
 

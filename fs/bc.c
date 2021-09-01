@@ -165,7 +165,7 @@ bc_init(void)
 {
 	struct Super super;
 	set_pgfault_handler(bc_pgfault);
-	check_bc();
+	// check_bc();
 
 	// cache the super block by reading it once
 	memmove(&super, diskaddr(1), sizeof super);

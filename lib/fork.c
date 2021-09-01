@@ -29,7 +29,7 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 	if (!((err&FEC_WR)&&(uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_COW))){
-		panic("pgfault: the access is not a write to a copy-on-write page\n");
+		panic("pgfault: page access at %08x is not a write to a copy-on-write\n", addr);
 	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),

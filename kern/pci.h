@@ -16,7 +16,8 @@ struct pci_func {
 
     uint32_t dev_id;
     uint32_t dev_class;
-
+    // Base Address Registers (or BARs) are used to map the Ethernet controller¡¯s register space 
+    // and flash to system memory space
     uint32_t reg_base[6];
     uint32_t reg_size[6];
     uint8_t irq_line;

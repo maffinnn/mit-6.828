@@ -350,10 +350,17 @@ page_init(void)
 	 *           page_initÊ±µÄPhysical Memory Layout
 	 *
 	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
+	 *				|		32-bit		 |
+	 *				|   memory mapped	 | <---BIOS for 32-bit PCI devices
+	 *				|	   devices       |
+	 *				/\/\/\/\/\/\/\/\/\/\/\
+	 *
+	 *				/\/\/\/\/\/\/\/\/\/\/\					 
+	 *              |	    Unused		 |
 	 *   			|					 |
-	 *   			+--------------------+ 0x08000000   --+  <-- depends on the amount of RAM
-	 * 	            |                    |                |
-	 * 				|  free to allocate  |                |
+	 *   			+--------------------+ 0x08000000   --+  <-- JOS 256MB limit (depends on amount of RAM)
+	 * 	            |                    |                |		Maximum pages can be allocated up until this point
+	 * 				|  free to allocate  |                |		
 	 * 				|                    |                |
 	 * 				+--------------------+ 0x00157000	  |
 	 * 				|    pages(array)    |	64*PGSIZE	  |

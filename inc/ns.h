@@ -8,7 +8,7 @@
 #include <lwip/sockets.h>
 
 struct jif_pkt {
-	int jp_len;
+	int jp_len; // length of a packet
 	char jp_data[0];
 };
 

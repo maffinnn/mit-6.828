@@ -35,8 +35,8 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "S" (a5)
 		     : "cc", "memory");
 
-	if(check && ret > 0)
-		panic("syscall %d returned %d (> 0)", num, ret);
+	// if(check && ret > 0)
+	// 	cprintf("syscall %d returned %d (> 0)", num, ret);
 
 	return ret;
 }
@@ -125,4 +125,16 @@ unsigned int
 sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
+}
+
+int 
+sys_netpacket_try_send(void* buf, size_t len)
+{
+	return syscall(SYS_netpacket_try_send, 1, (uint32_t)buf, len, 0, 0, 0);
+}
+
+int 
+sys_netpacket_recv(void* buf, size_t buflen)
+{
+	return syscall(SYS_netpacket_recv, 1, (uint32_t)buf, buflen, 0, 0, 0);
 }

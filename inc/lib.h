@@ -60,8 +60,14 @@ int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
+int sys_netpacket_try_send(void* buf, size_t len);
+int sys_netpacket_recv(void* buf, size_t buflen);
 
 // This must be inlined.  Exercise for reader: why?
+/*
+ * 因为inline是直接复制插入代码片段, 若不是inline就会再调用函数
+ * 一旦调用函数, 栈结构就会发生变化, 子进程的栈指针就会不正确
+*/
 static inline envid_t __attribute__((always_inline))
 sys_exofork(void)
 {
