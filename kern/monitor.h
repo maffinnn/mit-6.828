@@ -18,5 +18,9 @@ int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
 int mon_showmapping(int argc, char **argv, struct Trapframe *tf);
 int mon_chmod(int argc, char** argv, struct Trapframe* tf);
 int mon_dump(int argc, char** argv, struct Trapframe* tf);
+<<<<<<< HEAD
+=======
+int mon_step(int argc, char** argv, struct Trapframe* tf);
+>>>>>>> lab6
 
 #endif	// !JOS_KERN_MONITOR_H

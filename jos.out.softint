@@ -1,0 +1,153 @@
++ ld obj/kern/kernel
++ mk obj/kern/kernel.img
+6828 decimal is 15254 octal!
+Physical memory: 131072K available, base = 640K, extended = 130432K
+npages at the initialization point: 32768
+pages: f02c0000
+envs: f02df000
+available pages on the page_free_list = 32158
+check_page_free_list() succeeded!
+alloc_cnt=1
+alloc_cnt=2
+alloc_cnt=3
+alloc_cnt=4
+alloc_cnt=5
+alloc_cnt=6
+alloc_cnt=7
+check_page_alloc() succeeded!
+alloc_cnt=8
+alloc_cnt=9
+alloc_cnt=10
+page_lookup: no corresponding page at va:00000000
+pgdir_walk: fail to allocate a new page table
+page_insert: fail to insert a new page table
+alloc_cnt=11
+pgdir_walk: fail to allocate a new page table
+page_insert: fail to insert a new page table
+alloc_cnt=12
+alloc_cnt=13
+alloc_cnt=14
+alloc_cnt=15
+alloc_cnt=16
+check_page() succeeded!
+alloc_cnt=17
+alloc_cnt=18
+alloc_cnt=19
+alloc_cnt=20
+alloc_cnt=21
+alloc_cnt=22
+alloc_cnt=23
+alloc_cnt=24
+alloc_cnt=25
+alloc_cnt=26
+alloc_cnt=27
+alloc_cnt=28
+alloc_cnt=29
+alloc_cnt=30
+alloc_cnt=31
+alloc_cnt=32
+alloc_cnt=33
+alloc_cnt=34
+alloc_cnt=35
+alloc_cnt=36
+alloc_cnt=37
+alloc_cnt=38
+alloc_cnt=39
+alloc_cnt=40
+alloc_cnt=41
+alloc_cnt=42
+alloc_cnt=43
+alloc_cnt=44
+alloc_cnt=45
+alloc_cnt=46
+alloc_cnt=47
+alloc_cnt=48
+alloc_cnt=49
+alloc_cnt=50
+alloc_cnt=51
+alloc_cnt=52
+alloc_cnt=53
+alloc_cnt=54
+alloc_cnt=55
+alloc_cnt=56
+alloc_cnt=57
+alloc_cnt=58
+alloc_cnt=59
+alloc_cnt=60
+alloc_cnt=61
+alloc_cnt=62
+alloc_cnt=63
+alloc_cnt=64
+alloc_cnt=65
+alloc_cnt=66
+alloc_cnt=67
+alloc_cnt=68
+alloc_cnt=69
+alloc_cnt=70
+alloc_cnt=71
+alloc_cnt=72
+alloc_cnt=73
+alloc_cnt=74
+alloc_cnt=75
+alloc_cnt=76
+alloc_cnt=77
+alloc_cnt=78
+alloc_cnt=79
+alloc_cnt=80
+alloc_cnt=81
+alloc_cnt=82
+alloc_cnt=83
+cpu0's stack at pa = 0023e000
+cpu1's stack at pa = 00246000
+cpu2's stack at pa = 0024e000
+cpu3's stack at pa = 00256000
+cpu4's stack at pa = 0025e000
+cpu5's stack at pa = 00266000
+cpu6's stack at pa = 0026e000
+cpu7's stack at pa = 00276000
+check_kern_pgdir() succeeded!
+check_page_free_list() succeeded!
+alloc_cnt=84
+alloc_cnt=85
+alloc_cnt=86
+alloc_cnt=87
+check_page_installed_pgdir() succeeded!
+SMP: CPU 0 found 1 CPU(s)
+enabled interrupts: 1 2
+alloc_cnt=88
+[00000000] new env 00001000
+alloc_cnt=89
+alloc_cnt=90
+alloc_cnt=91
+alloc_cnt=92
+alloc_cnt=93
+alloc_cnt=94
+alloc_cnt=95
+alloc_cnt=96
+alloc_cnt=97
+alloc_cnt=98
+alloc_cnt=99
+alloc_cnt=100
+TRAP frame at 0xf02df000 from CPU 0
+  edi  0x00000000
+  esi  0x00000000
+  ebp  0xeebfdff0
+  oesp 0xf023dfdc
+  ebx  0x00000000
+  edx  0x00000000
+  ecx  0x00000000
+  eax  0xeec00000
+  es   0x----0023
+  ds   0x----0023
+  trap 0x0000000d General Protection
+  err  0x00000072
+  eip  0x00800037
+  cs   0x----001b
+  flag 0x00000282
+  esp  0xeebfdfd4
+  ss   0x----0023
+[00001000] free env 00001000
+No runnable environments in the system!
+Welcome to the JOS kernel monitor!
+Type 'help' for a list of commands.
+qemu: terminating on signal 15 from pid 102488

@@ -19,6 +19,7 @@ struct Command {
 	const char *name;
 	const char *desc;
 	// return -1 to force monitor to exit
+	// 函数指针指向commands
 	int (*func)(int argc, char** argv, struct Trapframe* tf);
 };
 
@@ -28,7 +29,12 @@ static struct Command commands[] = {
 	{ "backtrace", "Backtrace the kernel stack", mon_backtrace },
 	{ "showmapping", "Display physical page mappings for a given range of virtual addresses", mon_showmapping },
 	{ "chmod", "Set, clear or change the permissions of a given range of virtual addresses", mon_chmod },
+<<<<<<< HEAD
 	{ "dump", "Dump the contents of a range of memory given either a virtual or physical address range", mon_dump }
+=======
+	{ "dump", "Dump the contents of a range of memory given either a virtual or physical address range", mon_dump },
+	//{ "step", "single-step one instruction at a time for debugging use\n", mon_step }
+>>>>>>> lab6
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -155,6 +161,95 @@ int
 mon_chmod(int argc, char** argv, struct Trapframe* tf)
 {
 	if (argc < 3) { cprintf("Usage: chmod [+/-/=PERMISSIONS] [virtual addr]\n"); return 0;}
+<<<<<<< HEAD
+
+	char* p = argv[1];
+	uint32_t va = atox(argv[2]);
+	va = ROUNDDOWN(va, PGSIZE);
+
+	pte_t* pg_tbl_entry = pgdir_walk(kern_pgdir, (void*)va, 1);// 如果不存在这样一个page就create一个page并修改权限
+	switch (argv[1][0])
+	{
+	case '-':
+		for(p=p+1;*p!='\0'; p++){
+			if (*p=='p')
+				*pg_tbl_entry &= ~PTE_P;
+			if (*p=='w')
+				*pg_tbl_entry &= ~PTE_W;
+			if (*p=='u')
+				*pg_tbl_entry &= ~PTE_U;
+			if (*p=='-') continue;
+		}
+		break;
+	case '=':
+		*pg_tbl_entry &= ~0xFFF;
+	case '+':
+		for(p=p+1;*p!='\0'; p++){
+			if (*p=='p')
+				*pg_tbl_entry |= PTE_P;
+			if (*p=='w')
+				*pg_tbl_entry |= PTE_W;
+			if (*p=='u')
+				*pg_tbl_entry |= PTE_U;
+			if (*p=='-') continue;
+		}
+		break;
+	default:
+		cprintf("please enter correct command\n");
+		break;
+	}
+
+	return 0;
+}
+
+// dump -v [va0, va1)
+// dump -p [pa0, pa1)
+int
+mon_dump(int argc, char** argv, struct Trapframe* tf)
+{
+	if (argc < 4) { cprintf("Usage: dump [-v/p] [addr] [addr]\n"); return 0;}
+
+	pte_t* pg_tbl_entry;
+	uint32_t va_start, va_end;
+	uint64_t* line;
+
+	/* 
+	 * 注意：
+	 * 这里p的类型必须是unsigned char* 而不是单单char* 
+	 * 原因：有一些内存值会超过CHAR_MAX i.e. char的range在[-2^8, 2^8-1], 会自动sign extension一堆ffff 
+	 * 		 需要使用unsigned char来hold这些value
+	*/
+	unsigned char* p;
+	if (argv[1][1]=='p'){
+		// translate physical address into virtual address
+		va_start = (uint32_t)KADDR(atox(argv[2]));
+		va_end = (uint32_t)KADDR(atox(argv[3]));
+	}else{
+		va_start = atox(argv[2]);
+		va_end = atox(argv[3]);
+	}
+
+	va_start = ROUNDDOWN(va_start, PGSIZE);
+
+	// 指针内存的是地址 而指针的偏移量由其type决定
+	for (; va_start<= ROUNDDOWN(va_end, PGSIZE); va_start+=PGSIZE){
+		// 检查va是否合法 即是否存在这样一个page at va_start
+		pg_tbl_entry = pgdir_walk(kern_pgdir, (void*)va_start, 0);
+		if (pg_tbl_entry == NULL){ cprintf("illegal access of paged memory at %08x\n", va_start); continue;}
+		for (line=(uint64_t*)va_start; (va_start+PGSIZE<=va_end)&&line<(uint64_t*)(va_start+PGSIZE); line++){
+			// 打印一下每8bytes的地址
+			cprintf("%08x  ", line);
+			for (p=(unsigned char*)line; p<(unsigned char*)(line+1); p++){
+				cprintf("%02x ", *p);
+			}
+			cprintf("\n");
+		}
+	}
+
+	return 0;
+}
+=======
+>>>>>>> lab6
 
 	char* p = argv[1];
 	uint32_t va = atox(argv[2]);
@@ -242,6 +337,15 @@ mon_dump(int argc, char** argv, struct Trapframe* tf)
 	return 0;
 }
 
+// int 
+// mon_step(int argc, char** argv, struct Trapframe* tf)
+// {
+// 	uint32_t eflags = read_eflags();
+// 	// enable Trap flag
+// 	write_eflags(eflags|FL_IF);
+	
+// 	return 0;
+// }
 
 /***** Kernel monitor command interpreter *****/
 
@@ -304,11 +408,15 @@ monitor(struct Trapframe *tf)
 	// unsigned int i = 0x00646c72; // inserted
 	// cprintf("H%x Wo%s\n", 57616, &i); // inserted
 	// cprintf("x=%d y=%d\n", 3); // inserted
+<<<<<<< HEAD
 
 	// 测试
 	// mon_backtrace(0, 0, 0);
+=======
+>>>>>>> lab6
 
-
+	// 测试
+	// mon_backtrace(0, 0, 0);
 	while (1) {
 		buf = readline("K> ");
 		if (buf != NULL)
