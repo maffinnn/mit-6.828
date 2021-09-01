@@ -4,6 +4,6 @@ includes answers for 6 labs.
 
 Solution files contain my detailed notes.
 
-I have pin-pointed many of my mistakes done when I was doing the labs.
+I have pin-pointed many of bugs made when I was doing the labs.
 
 Hope it helps.
