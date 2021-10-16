@@ -84,12 +84,9 @@ static void check_page_installed_pgdir(void);
 // If we're out of memory, boot_alloc should panic.
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
-<<<<<<< HEAD
-=======
 // Note that when this function is called, we are still using entry_pgdir,
 // which only maps the first 4MB of physical memory.
->>>>>>> lab6
-// Õâ¸öº¯Êı±»ÏÂÃæµÄmem_initº¯Êıµ÷ÓÃ
+// è¿™ä¸ªå‡½æ•°è¢«ä¸‹é¢çš„mem_initå‡½æ•°è°ƒç”¨
 static void *
 boot_alloc(uint32_t n)
 {
@@ -101,10 +98,10 @@ boot_alloc(uint32_t n)
 	// which points to the end of the kernel's bss segment:
 	// the first virtual address that the linker did *not* assign
 	// to any kernel code or global variables.
-	// nextfreeÖ¸Õë³õÊ¼»¯: ÔÚÈ·¶¨ÁËÄÚºË±¾ÉíÔÚÄÚ´æÖĞµÄÎ»ÖÃºó, ÈÃboot_allocÔÚÄÚºËËùÕ¼¿Õ¼äµÄÄÚ´æÖ®ºóµÄµÚÒ»¸öpage¿ªÊ¼·ÖÅä
-	// endÖ¸ÕëÊÇÁ´½ÓÆ÷²úÉúµÄ ¿ÉÒÔ²é¿´ÅäÖÃÎÄ¼şkern/kernel.ld  
-	// endÖ¸ÏòÄÚºË×îºóÒ»¸ö×Ö½ÚµÄÏÂÒ»¸ö×Ö½Ú
-	// ÕâÀï´ÓÁ´½ÓÆ÷ÖĞÄÃµ½ÄÚºËµÄ×îºóÒ»¸ö×Ö½ÚµÄµØÖ·end, ²¢½«Õâ¸öÖ¸ÕëµÄÊıÖµroundUpµ½PGSIZEµÄÕûÊı±¶
+	// nextfreeæŒ‡é’ˆåˆå§‹åŒ–: åœ¨ç¡®å®šäº†å†…æ ¸æœ¬èº«åœ¨å†…å­˜ä¸­çš„ä½ç½®å, è®©boot_allocåœ¨å†…æ ¸æ‰€å ç©ºé—´çš„å†…å­˜ä¹‹åçš„ç¬¬ä¸€ä¸ªpageå¼€å§‹åˆ†é…
+	// endæŒ‡é’ˆæ˜¯é“¾æ¥å™¨äº§ç”Ÿçš„ å¯ä»¥æŸ¥çœ‹é…ç½®æ–‡ä»¶kern/kernel.ld  
+	// endæŒ‡å‘å†…æ ¸æœ€åä¸€ä¸ªå­—èŠ‚çš„ä¸‹ä¸€ä¸ªå­—èŠ‚
+	// è¿™é‡Œä»é“¾æ¥å™¨ä¸­æ‹¿åˆ°å†…æ ¸çš„æœ€åä¸€ä¸ªå­—èŠ‚çš„åœ°å€end, å¹¶å°†è¿™ä¸ªæŒ‡é’ˆçš„æ•°å€¼roundUpåˆ°PGSIZEçš„æ•´æ•°å€
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
@@ -112,35 +109,11 @@ boot_alloc(uint32_t n)
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
-	// to a multiple of PGSIZE -->ÓÉROUNDUPÀ´Íê³É
+	// to a multiple of PGSIZE -->ç”±ROUNDUPæ¥å®Œæˆ
 	//
 	// LAB 2: Your code here.
-<<<<<<< HEAD
-	// ´òÓ¡Ò»ÏÂµ±Ç°nextfreeµÄÖµ
-	// cprintf("boot_alloc memory at %x\n", nextfree);
-	// cprintf("Next memory at %x\n", ROUNDUP((char*)(nextfree+n), PGSIZE));
-
-	if(n==0){
-		return nextfree;
-	}
-
-	if (n>0){
-		// update nextfree
-		nextfree = ROUNDUP((char*)(nextfree+n), PGSIZE);
-		// checkÊÇ·ñ»árunning out of memory ¼´³¬¹ıĞéÄâÄÚ´æ0xf0400000
-		if (nextfree > (char*)0xf0400000){
-			panic("boot_alloc is allocating memory out of boundary");
-			nextfree = result;
-			return NULL;
-		}
-		// ÏÖÔÚµÄÆğÊ¼µã¾ÍÊÇµ±Ç°Ã»ÓĞ±»update¹ıµÄnextfreeµÄÖµ
-		result = nextfree;
-		return result;
-	}
-=======
 	result = nextfree;
 	nextfree = ROUNDUP((char*)(nextfree+n), PGSIZE);
->>>>>>> lab6
 
 	return result;
 }
@@ -187,12 +160,9 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-	// Ê¹ÓÃboot_allocÀ´¸øpagesÊı×é·ÖÅäÄÚ´æ boot_allocÄÚ²¿ÊµÏÖpages¶ÔÆëÒò´Ë²»ÓÃÊÖ¶¯µ÷ÓÃROUNDUP()
+	// ä½¿ç”¨boot_allocæ¥ç»™pagesæ•°ç»„åˆ†é…å†…å­˜ boot_allocå†…éƒ¨å®ç°pageså¯¹é½å› æ­¤ä¸ç”¨æ‰‹åŠ¨è°ƒç”¨ROUNDUP()
 	pages = (struct PageInfo* ) boot_alloc(sizeof(struct PageInfo)*npages);
 	memset(pages, 0, sizeof(struct PageInfo)*npages);
-<<<<<<< HEAD
-	cprintf("pages: %x\n", pages);
-=======
 	// cprintf("pages: %x\n", pages);
 
 
@@ -202,7 +172,6 @@ mem_init(void)
 	envs = (struct Env*) boot_alloc(sizeof(struct Env)*NENV);
 	memset(envs, 0, sizeof(struct Env)*NENV);
 	// cprintf("envs: %x\n", envs);
->>>>>>> lab6
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -228,8 +197,6 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages),PTE_U|PTE_P);
-<<<<<<< HEAD
-=======
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -242,7 +209,6 @@ mem_init(void)
 	boot_map_region(kern_pgdir, UENVS, ROUNDUP(sizeof(struct Env) * NENV, PGSIZE), PADDR(envs), PTE_U|PTE_P);
 	
 
->>>>>>> lab6
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -255,12 +221,8 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W|PTE_P);
-<<<<<<< HEAD
-	cprintf("kernel stack at va = %08x, pa = %08x\n", KSTACKTOP-KSTKSIZE, PADDR(bootstack));
-=======
 	// cprintf("boot kernel stack at va = %08x, pa = %08x\n", KSTACKTOP-KSTKSIZE, PADDR(bootstack));
 	
->>>>>>> lab6
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -269,14 +231,11 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	// KERNBASE: 0xf0000000; 2^32: 4 Gib´¦ ¼´0xffffffff; Á½Õß²î0x0fffffff ¼´~KERNBASE
+	// KERNBASE: 0xf0000000; 2^32: 4 Gibå¤„ å³0xffffffff; ä¸¤è€…å·®0x0fffffff å³~KERNBASE
 	boot_map_region(kern_pgdir, KERNBASE, ~KERNBASE, 0, PTE_P|PTE_W);
-<<<<<<< HEAD
-=======
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
->>>>>>> lab6
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -302,17 +261,12 @@ mem_init(void)
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
 
-<<<<<<< HEAD
-=======
-	// ²âÊÔ
->>>>>>> lab6
+	// æµ‹è¯•
 	// int i; void* va;
 	// for (i=0, va= 0; i<1024; i++, va+=PTSIZE){
 	// 	cprintf("%d: va=%08x pde=%08x va2pa=%08x\n",i, va, kern_pgdir[PDX(va)], check_va2pa(kern_pgdir, (uintptr_t)va));
 	// }
 
-<<<<<<< HEAD
-=======
 }
 
 // Modify mappings in kern_pgdir to support SMP
@@ -347,7 +301,6 @@ mem_init_mp(void)
 	}
 	
 
->>>>>>> lab6
 }
 
 // --------------------------------------------------------------
@@ -376,36 +329,27 @@ page_init(void)
 	//     in case we ever need them.  (Currently we don't, but...)
 	//  2) The rest of base memory, [PGSIZE, npages_basemem * PGSIZE)
 	//     is free.
-	// 		--> Base Memory ÊÇ´ÓÎïÀíµØÖ·[0,EXTPHYSMEM) Ò»¹²ÓĞ1MB
-	//			1MB/4KB = 256¸öpages
+	// 		--> Base Memory æ˜¯ä»ç‰©ç†åœ°å€[0,EXTPHYSMEM) ä¸€å…±æœ‰1MB
+	//			1MB/4KB = 256ä¸ªpages
 	//  3) Then comes the IO hole [IOPHYSMEM, EXTPHYSMEM), which must
 	//     never be allocated. 
-	//		--> Ò»¹²ÓĞ384K 384K/4K = 96¸öpages
+	//		--> ä¸€å…±æœ‰384K 384K/4K = 96ä¸ªpages
 	//  4) Then extended memory [EXTPHYSMEM, ...).
 	//     Some of it is in use, some is free. 
 	// 	   Where is the kernel in physical memory?  
-	//	   --> kernelµÄµÚÒ»ÌõÖ¸ÁîÔÚ0x100000c
-	//         ×îºóÒ»ÌõÖ¸Áî¿ÉÒÔ´òÓ¡ÉÏÃæµÄendÖ¸ÕëÀ´²é¿´£¬´Ó¶øµÃ³ökernel´óĞ¡
-	//			Ò²¿ÉÍ¨¹ıreadelf kernelÀ´²é¿´
+	//	   --> kernelçš„ç¬¬ä¸€æ¡æŒ‡ä»¤åœ¨0x100000c
+	//         æœ€åä¸€æ¡æŒ‡ä»¤å¯ä»¥æ‰“å°ä¸Šé¢çš„endæŒ‡é’ˆæ¥æŸ¥çœ‹ï¼Œä»è€Œå¾—å‡ºkernelå¤§å°
+	//			ä¹Ÿå¯é€šè¿‡readelf kernelæ¥æŸ¥çœ‹
 	//	   Which pages are already in use for page tables and other data structures?
-	//	   --> kern_pgdirºÍpages array
-<<<<<<< HEAD
-=======
+	//	   --> kern_pgdirå’Œpages array
 	// 	5) in Lab 4 need to avoid adding the page at MPENTRY_PADDR(0x7000) 
 	//     to the free list so that tne BSP can safely copy and 
 	//     run AP bootstrap code at the physical address
->>>>>>> lab6
 	//     
 	/*
-	 *           page_initÊ±µÄPhysical Memory Layout
+	 *           page_initæ—¶çš„Physical Memory Layout
 	 *
 	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
-<<<<<<< HEAD
-	 *   			|					 |
-	 *   			+--------------------+				--+  <-- depends on the amount of RAM
-	 * 	            |                    |                |
-	 * 				|  free to allocate  |                |
-=======
 	 *				|		32-bit		 |
 	 *				|   memory mapped	 | <---BIOS for 32-bit PCI devices
 	 *				|	   devices       |
@@ -417,7 +361,6 @@ page_init(void)
 	 *   			+--------------------+ 0x08000000   --+  <-- JOS 256MB limit (depends on amount of RAM)
 	 * 	            |                    |                |		Maximum pages can be allocated up until this point
 	 * 				|  free to allocate  |                |		
->>>>>>> lab6
 	 * 				|                    |                |
 	 * 				+--------------------+ 0x00157000	  |
 	 * 				|    pages(array)    |	64*PGSIZE	  |
@@ -431,13 +374,6 @@ page_init(void)
 	 *  			|	   IO hole		 |				  |	
 	 * 				|                    |                |
 	 *  IOPHYSMEM	+--------------------+ 0x000a0000     |  
-<<<<<<< HEAD
-	 *  			|                    |				  |
-	 *  			|  free to allocate  |				 Base
-	 *  			|					 |			    Memory 
-	 *  			|					 |			      |
-	 *  			+--------------------+ 0x00000400	  |
-=======
 	 *  			|                    |                |	
 	 * 				+--------------------+ 0x00008000     |			  
 	 * 				| APs bootstrap code | PGSIZE		  |
@@ -446,7 +382,6 @@ page_init(void)
 	 *  			|					 |			    Memory 
 	 *  			|					 |			      |
 	 *  			+--------------------+ 0x00001000	  |
->>>>>>> lab6
 	 *  			|	  Preserved		 |	PGSIZE		  |
 	 *  			+--------------------+ 0x00000000   --+
 	 *
@@ -456,62 +391,15 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
     
-<<<<<<< HEAD
-	// Ìø¹ıperserved
-	// [PGSIZE, IOPHYSMEM)µÄ²¿·Ö
-	size_t i=1;
-	for (; i < npages_basemem; i++) {
-		pages[i].pp_ref = 0;
-		//pages[i].pp_linkÖ¸ÏòÒ»¸önext page on the free listµÄÆğÊ¼µØÖ·, ¼´linked-listµÄnextÖ¸Õë
-		pages[i].pp_link = page_free_list;
-		// ¸üĞÂÒ»ÏÂÁ´±íÍ·²¿
-		page_free_list = &pages[i];
-	}
-	// Ìø¹ıpages arrayµÄ²¿·Ö
-    // yangminz´óÀĞÊ¹ÓÃÁËPGNUMÀ´ËãÕâ¸öÖµ
-	i = (size_t)(ROUNDUP((char*)pages + sizeof(struct PageInfo)*npages, PGSIZE)-KERNBASE)/PGSIZE;
-	for (; i<npages; i++){
-=======
-	// [PGSIZE, IOPHYSMEM)µÄ²¿·Ö
+	// [PGSIZE, IOPHYSMEM)çš„éƒ¨åˆ†
 	pages[0].pp_ref = 1;
 	size_t i = 1;
 	for (; i<MPENTRY_PADDR/PGSIZE; i++){
->>>>>>> lab6
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
 
-<<<<<<< HEAD
-=======
-	extern unsigned char mpentry_start[], mpentry_end[];
-	size_t size = ROUNDUP((mpentry_end-mpentry_start), PGSIZE);
-	for (; i<(MPENTRY_PADDR+size)/PGSIZE; i++){
-		pages[i].pp_ref = 1;
-	}
-
-	for (; i<npages_basemem; i++){
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-	// IO hole
-	for (; i<EXTPHYSMEM/PGSIZE; i++){
-		pages[i].pp_ref = 1;
-	}
-	// Ìø¹ıkern pages arrayºÍenv arrayµÄ²¿·Ö
-	physaddr_t first_free_page = PADDR(boot_alloc(0));
-	for (; i<first_free_page/PGSIZE; i++){
-		pages[i].pp_ref = 1;
-	}
-
-	for (; i<npages; i++){
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-
->>>>>>> lab6
 }
 
 //
@@ -531,10 +419,6 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-<<<<<<< HEAD
-	// cprintf("entering page_alloc\n");
-=======
->>>>>>> lab6
 	if (page_free_list){
 		struct PageInfo* cur = page_free_list;
 		page_free_list = page_free_list->pp_link;
@@ -559,15 +443,10 @@ page_free(struct PageInfo *pp)
 	// cprintf("entering page_free\n");
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
-<<<<<<< HEAD
-	if (pp->pp_ref||pp->pp_link) 
-		panic("This page is still in use and should not be freed!\n");
-=======
 	if (pp->pp_link!=NULL) 
 		panic("page_free: ths page is on the page_free_list, invalid free operation\n");
 	if (pp->pp_ref!=0)
 		panic("page_free: the page is in use and should not be freed!\n");
->>>>>>> lab6
 		
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
@@ -606,23 +485,23 @@ page_decref(struct PageInfo* pp)
 //
 // Hint 3: look at inc/mmu.h for useful macros that manipulate page
 // table and page directory entries.
-/* ±Ê¼Ç£º 
- * Ã¿¸ö½ø³ÌÓĞÒ»¸ö¶ÀÁ¢µÄÒ³±í£¬ÕıÔÚÔËĞĞµÄ½ø³ÌµÄÒ³Ä¿Â¼ÎïÀíµØÖ·»á±»·ÅÔÚ¿ØÖÆ¼Ä´æÆ÷cr3ÖĞ
- * Ò»¸ö32-bitÏßĞÔµØÖ·(linear address)µÄformat£º
+/* ç¬”è®°ï¼š 
+ * æ¯ä¸ªè¿›ç¨‹æœ‰ä¸€ä¸ªç‹¬ç«‹çš„é¡µè¡¨ï¼Œæ­£åœ¨è¿è¡Œçš„è¿›ç¨‹çš„é¡µç›®å½•ç‰©ç†åœ°å€ä¼šè¢«æ”¾åœ¨æ§åˆ¶å¯„å­˜å™¨cr3ä¸­
+ * ä¸€ä¸ª32-bitçº¿æ€§åœ°å€(linear address)çš„formatï¼š
  * +--------10------+-------10-------+---------12----------+
  * | Page Directory |   Page Table   | Offset within Page  |
  * |      Index     |      Index     |                     |
  * +----------------+----------------+---------------------+
- * 1) Ê×ÏÈÔÚ½ø³ÌÔÚÇĞ»»Ê±½«¸Ã½ø³ÌµÄÒ³Ä¿Â¼ÆäÊµÎïÀíµØÖ··Åµ½cr3¼Ä´æÆ÷ÖĞ
- * 2£©µ±¸Ã½ø³ÌÖ¸Áî·ÃÎÊÒ»¸öµØÖ·Ê±, ÏÈ¾­¹ıMMU·Ö¶Îµ¥Ôª×ª»¯³ÉÏßĞÔµØÖ·(la)
- * 3£©°ÑlaÖĞdirectory field(Ç°10 bit)×÷ÎªÆ«ÒÆÁ¿, ¼ÓÉÏcr3¼Ä´æÆ÷ÖĞ´æ´¢µÄÒ³Ä¿Â¼ÎïÀí»ùµØÖ·, 
- *    µÃµ½µÄPage Directory Entry¾ÍÊÇ¸ÃµØÖ·ËùÔÚÒ³±íµÄÎïÀí»ùµØÖ· 
- * 4£©°ÑlaÖĞµÄtable field(ÖĞ¼ä10 bit)×÷ÎªÆ«ÒÆÁ¿, ¼ÓÉÏ3£©ÖĞµÃµ½µÄÒ³±íÎïÀí»ùµØÖ·,
- *    µÃµ½µÄPTE¾ÍÊÇ¸ÃµØÖ·ËùÔÚµÄphysical frameµÄ»ùµØÖ·
- * 5£©laÖĞµÄoffset field(×îºó12 bit)¾ÍÊÇphysical frameÖĞµÄÆ«ÒÆÁ¿, 
- *    ¼ÓÉÏÉÏÃæµÄphysical frame»ùµØÖ·¾ÍÊÇÏßĞÔµØÖ·Ó³ÉäµÄÎïÀíÄÚ´æµØÖ·
+ * 1) é¦–å…ˆåœ¨è¿›ç¨‹åœ¨åˆ‡æ¢æ—¶å°†è¯¥è¿›ç¨‹çš„é¡µç›®å½•å…¶å®ç‰©ç†åœ°å€æ”¾åˆ°cr3å¯„å­˜å™¨ä¸­
+ * 2ï¼‰å½“è¯¥è¿›ç¨‹æŒ‡ä»¤è®¿é—®ä¸€ä¸ªåœ°å€æ—¶, å…ˆç»è¿‡MMUåˆ†æ®µå•å…ƒè½¬åŒ–æˆçº¿æ€§åœ°å€(la)
+ * 3ï¼‰æŠŠlaä¸­directory field(å‰10 bit)ä½œä¸ºåç§»é‡, åŠ ä¸Šcr3å¯„å­˜å™¨ä¸­å­˜å‚¨çš„é¡µç›®å½•ç‰©ç†åŸºåœ°å€, 
+ *    å¾—åˆ°çš„Page Directory Entryå°±æ˜¯è¯¥åœ°å€æ‰€åœ¨é¡µè¡¨çš„ç‰©ç†åŸºåœ°å€ 
+ * 4ï¼‰æŠŠlaä¸­çš„table field(ä¸­é—´10 bit)ä½œä¸ºåç§»é‡, åŠ ä¸Š3ï¼‰ä¸­å¾—åˆ°çš„é¡µè¡¨ç‰©ç†åŸºåœ°å€,
+ *    å¾—åˆ°çš„PTEå°±æ˜¯è¯¥åœ°å€æ‰€åœ¨çš„physical frameçš„åŸºåœ°å€
+ * 5ï¼‰laä¸­çš„offset field(æœ€å12 bit)å°±æ˜¯physical frameä¸­çš„åç§»é‡, 
+ *    åŠ ä¸Šä¸Šé¢çš„physical frameåŸºåœ°å€å°±æ˜¯çº¿æ€§åœ°å€æ˜ å°„çš„ç‰©ç†å†…å­˜åœ°å€
  * 
- *  ¶ÔÓÚµ½µ×ÊÇphysical address»¹ÊÇvirtual addr¿ÉÒÔ²Î¿¼ÒÔÏÂÕâ¸öfunction
+ *  å¯¹äºåˆ°åº•æ˜¯physical addressè¿˜æ˜¯virtual addrå¯ä»¥å‚è€ƒä»¥ä¸‹è¿™ä¸ªfunction
  * 	static physaddr_t check_va2pa(pde_t *pgdir, uintptr_t va)
 */
 pte_t *
@@ -630,54 +509,45 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
 	// cprintf("entering pgdir_walk\n");
-	// ÕâÀïµÄpgdir´æµÄÊÇpage directoryµÄ»ùµØÖ·
-	// ¿ÉÒÔÍ¨¹ıPDX»ñµÃpage directory indexÕâ¸öË÷ÒıÖµ À´»ñÈ¡¶ÔÓ¦µÄpg_dir_entry
+	// è¿™é‡Œçš„pgdirå­˜çš„æ˜¯page directoryçš„åŸºåœ°å€
+	// å¯ä»¥é€šè¿‡PDXè·å¾—page directory indexè¿™ä¸ªç´¢å¼•å€¼ æ¥è·å–å¯¹åº”çš„pg_dir_entry
 	pde_t* pg_dir_entry = &pgdir[PDX(va)];
 	pte_t* pg_tbl = NULL;
-	// checkµ±Ç°²éÕÒµÄpage table pageÊÇ·ñ´æÔÚ
+	// checkå½“å‰æŸ¥æ‰¾çš„page table pageæ˜¯å¦å­˜åœ¨
 	if ((*pg_dir_entry)&PTE_P){
 
-		// Èç¹û´æÔÚpage table page
-		// Í¨¹ıPTE_Addr(pg_dir_entry)»ñµÃ¶ÔÓ¦µÄpage table pagedµÄ»ùµØÖ·
-		// PTE_ADDRÕâ¸öºê¾ÍÊÇÔÚ»ñÈ¡PDEµÄÇ°20Î» ¼´PPNµÄÖµ
-		// Ê¹ÓÃKADDRµÄÔ­Òò£º
-		// ×ó±ßPTE_ADDR(pg_dir_entry)Éú³ÉµÄÊÇÒ»¸öÎïÀíµØÖ·
-		// ¶øÓÒ±ßpg_tbl_page ÊÇÒ»¸öCÓïÑÔÖ¸ÕëÀàĞÍ ËùÖ¸ÏòµÄµØÖ·ÊÇĞéÄâµØÖ·
+		// å¦‚æœå­˜åœ¨page table page
+		// é€šè¿‡PTE_Addr(pg_dir_entry)è·å¾—å¯¹åº”çš„page table pagedçš„åŸºåœ°å€
+		// PTE_ADDRè¿™ä¸ªå®å°±æ˜¯åœ¨è·å–PDEçš„å‰20ä½ å³PPNçš„å€¼
+		// ä½¿ç”¨KADDRçš„åŸå› ï¼š
+		// å·¦è¾¹PTE_ADDR(pg_dir_entry)ç”Ÿæˆçš„æ˜¯ä¸€ä¸ªç‰©ç†åœ°å€
+		// è€Œå³è¾¹pg_tbl_page æ˜¯ä¸€ä¸ªCè¯­è¨€æŒ‡é’ˆç±»å‹ æ‰€æŒ‡å‘çš„åœ°å€æ˜¯è™šæ‹Ÿåœ°å€
 	    pg_tbl = (pte_t* )KADDR(PTE_ADDR(*pg_dir_entry));
 		
 	}else{
 
-		// ¶ÔÓ¦µÄpage table page²»´æÔÚ ²¢ÇÒcreate==false
+		// å¯¹åº”çš„page table pageä¸å­˜åœ¨ å¹¶ä¸”create==false
 		if (create == 0)
 			return NULL;
 
-	 	// ¶ÔÓ¦µÄpage table page²»´æÔÚµ«±»ÒªÇócreateÕâÑùÒ»¸öpage table page
-		// ĞèÒªALLOC_ZEROÇå¿ÕÒ³±íÄÚ´æ ·ñÔòÖ®ºóÊ¹ÓÃpa2page»á³ö´í
+	 	// å¯¹åº”çš„page table pageä¸å­˜åœ¨ä½†è¢«è¦æ±‚createè¿™æ ·ä¸€ä¸ªpage table page
+		// éœ€è¦ALLOC_ZEROæ¸…ç©ºé¡µè¡¨å†…å­˜ å¦åˆ™ä¹‹åä½¿ç”¨pa2pageä¼šå‡ºé”™
 		struct PageInfo* new_page = page_alloc(ALLOC_ZERO);
 		if (new_page == NULL){
-			// page_alloc ²»³É¹¦
+			// page_alloc ä¸æˆåŠŸ
 			cprintf("pgdir_walk: fail to allocate a new page table\n");
 			return NULL;
 		}
-		// page2paÕâ¸öº¯Êı¿ÉÒÔ¸ù¾İÒ»¸öPageInfo *À´µÃµ½Ëù¶ÔÓ¦µÄpageµÄphysical address(ÉñÆæ ĞèÒª¿´Ò»ÏÂÔ­Àí)
-<<<<<<< HEAD
-		pg_tbl = (pte_t*)KADDR(page2pa(new_page));
-		// increment page reference count		
-		new_page->pp_ref++;
-		// ¸üĞÂÒ»ÏÂ¶ÔÓ¦µÄpage directory entry
-		*pg_dir_entry = page2pa(new_page)|PTE_P|PTE_W|PTE_U;
-		
-=======
+		// page2paè¿™ä¸ªå‡½æ•°å¯ä»¥æ ¹æ®ä¸€ä¸ªPageInfo *æ¥å¾—åˆ°æ‰€å¯¹åº”çš„pageçš„physical address(ç¥å¥‡ éœ€è¦çœ‹ä¸€ä¸‹åŸç†)
 		// pg_tbl = (pte_t*)KADDR(page2pa(new_page));
 		// increment page reference count		
 		new_page->pp_ref++;
-		// ¸üĞÂÒ»ÏÂ¶ÔÓ¦µÄpage directory entry
+		// æ›´æ–°ä¸€ä¸‹å¯¹åº”çš„page directory entry
 		 pg_tbl = (pte_t* )page2kva(new_page);
 		 *pg_dir_entry = PADDR(pg_tbl)|PTE_P|PTE_W|PTE_U;
->>>>>>> lab6
 	}
 
-	return &pg_tbl[PTX(va)]; // ĞéÄâµØÖ·
+	return &pg_tbl[PTX(va)]; // è™šæ‹Ÿåœ°å€
 
 }
 
@@ -696,16 +566,11 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
-<<<<<<< HEAD
-	cprintf("entering boot_map_region\n");
-	int num = size/PGSIZE;
-=======
 	// cprintf("entering boot_map_region\n");
 	int num = ROUNDUP(size,PGSIZE)/PGSIZE; 
->>>>>>> lab6
 	int i;
 	for (i=1; i<=num; i++){
-		// ÕâÀïÊ¹ÓÃpgdir_walkµÄ·µ»ØÖµÒ»¶¨ÊÇÒ»¸ö¿ÕµÄµÄpage_table_entry
+		// è¿™é‡Œä½¿ç”¨pgdir_walkçš„è¿”å›å€¼ä¸€å®šæ˜¯ä¸€ä¸ªç©ºçš„çš„page_table_entry
 		pte_t* pg_tbl_entry = pgdir_walk(pgdir, (void* )va, 1);
 		if (!pg_tbl_entry) {
 			panic("boot_map_region panic, out of memory\n");
@@ -743,45 +608,30 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 // Hint: The TA solution is implemented using pgdir_walk, page_remove,
 // and page2pa.
 //
-// ¸ø¶¨Ò»¸öphysical page½«Ëümapµ½Ö¸¶¨va
-// Ò»¿ªÊ¼¾ÍÊÇ¼ÙÉèÃ»ÓĞÕâÑùÒ»¸öpage´æÔÚµÄ ½«Ò»¸öÎïÀíµØÖ·ppÓ³Éäµ½va²¢update page directory
+// ç»™å®šä¸€ä¸ªphysical pageå°†å®ƒmapåˆ°æŒ‡å®šva
+// ä¸€å¼€å§‹å°±æ˜¯å‡è®¾æ²¡æœ‰è¿™æ ·ä¸€ä¸ªpageå­˜åœ¨çš„ å°†ä¸€ä¸ªç‰©ç†åœ°å€ppæ˜ å°„åˆ°vaå¹¶update page directory
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-<<<<<<< HEAD
-	// cprintf("entering page_insert\n");
-=======
->>>>>>> lab6
 	pte_t* pg_tbl_entry = pgdir_walk(pgdir, va, 1);
 	if (pg_tbl_entry == NULL){
-		// Ã»ÓĞallocate³É¹¦Ò»¸öĞÂµÄpage table entry
+		// æ²¡æœ‰allocateæˆåŠŸä¸€ä¸ªæ–°çš„page table entry
 		cprintf("page_insert: fail to insert a new page table\n");
 		return -E_NO_MEM;
 	}
-<<<<<<< HEAD
-	physaddr_t pa = page2pa(pp);
-	// Èç¹ûÒÑ¾­ÓĞpageÓ³ÉäÔÚÁËva
+	// å¦‚æœå·²ç»æœ‰pageæ˜ å°„åœ¨äº†va
 	if ((*pg_tbl_entry)&PTE_P){
-		// Èç¹ûÕâ¸öphysical pageÕıºÃÓëpg_table_entryÀïËù¼ÇÂ¼µÄpaÏàÍ¬
-		if (pa==PTE_ADDR(*pg_tbl_entry)){
-=======
-	// Èç¹ûÒÑ¾­ÓĞpageÓ³ÉäÔÚÁËva
-	if ((*pg_tbl_entry)&PTE_P){
-		// Èç¹ûÕâ¸öphysical pageÕıºÃÓëpg_table_entryÀïËù¼ÇÂ¼µÄpaÏàÍ¬
+		// å¦‚æœè¿™ä¸ªphysical pageæ­£å¥½ä¸pg_table_entryé‡Œæ‰€è®°å½•çš„paç›¸åŒ
 		if (page2pa(pp)==PTE_ADDR(*pg_tbl_entry)){
->>>>>>> lab6
 			tlb_invalidate(pgdir, va);
 			pp->pp_ref--;
 		}
-		else page_remove(pgdir, va); // ÄÚ²¿ÒÑ¾­µ÷ÓÃÁËtlb_invalidate
+		else page_remove(pgdir, va); // å†…éƒ¨å·²ç»è°ƒç”¨äº†tlb_invalidate
 	}
-	// ¸üĞÂÒ»ÏÂpage table entry
-<<<<<<< HEAD
-	*pg_tbl_entry = pa|perm|PTE_P;
-=======
+	// æ›´æ–°ä¸€ä¸‹page table entry
 	*pg_tbl_entry = page2pa(pp)|perm|PTE_P;
->>>>>>> lab6
+
 	pp->pp_ref++;
 	return 0;
 }
@@ -797,24 +647,24 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 //
 // Hint: the TA solution uses pgdir_walk and pa2page.
 //
-// ¸ø¶¨Ò»¸öva²éÕÒÓëÖ®¶ÔÓ¦µÄpageÊÇ·ñ´æÔÚ
+// ç»™å®šä¸€ä¸ªvaæŸ¥æ‰¾ä¸ä¹‹å¯¹åº”çš„pageæ˜¯å¦å­˜åœ¨
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
 	// cprintf("entering page_lookup\n");
-	//pgdir_walkµÄ·µ»ØÖµÓĞÈıÖÖÇé¿ö
-	// 1) Èç¹ûpg_dir_entryµÄpresent bitÎªÕæ ËµÃ÷¶ÔÓ¦µÄpage table page´æÔÚ ÄÇÃ´ÄÃµ½µÄÊÇÒ»¸öpage table entry
-	pte_t* pg_tbl_entry =  pgdir_walk(pgdir, va, 0); // ²»ĞèÒªcreate
+	//pgdir_walkçš„è¿”å›å€¼æœ‰ä¸‰ç§æƒ…å†µ
+	// 1) å¦‚æœpg_dir_entryçš„present bitä¸ºçœŸ è¯´æ˜å¯¹åº”çš„page table pageå­˜åœ¨ é‚£ä¹ˆæ‹¿åˆ°çš„æ˜¯ä¸€ä¸ªpage table entry
+	pte_t* pg_tbl_entry =  pgdir_walk(pgdir, va, 0); // ä¸éœ€è¦create
 	
 	if (pte_store != NULL){
-		// ±£´æpage table entryµÄµØÖ·
+		// ä¿å­˜page table entryçš„åœ°å€
 		*pte_store = pg_tbl_entry;
 	}
 		
 	if (pg_tbl_entry == NULL||!((*pg_tbl_entry)&PTE_P)) {
 		cprintf("page_lookup: no corresponding page at va:%08x\n", va);
-		return NULL; // Èç¹ûÃ»ÓĞpageÓ³ÉäÔÚvaÕâ¸öÎ»ÖÃ
+		return NULL; // å¦‚æœæ²¡æœ‰pageæ˜ å°„åœ¨vaè¿™ä¸ªä½ç½®
 	}
 	
 	// cprintf("physical addr:%08x\n", PTE_ADDR(*pg_tbl_entry));
@@ -846,8 +696,8 @@ page_remove(pde_t *pgdir, void *va)
 	struct PageInfo* pp = page_lookup(pgdir, va, &pte_store);
  
 	if (pp){
-		// ´æÔÚÕâÑùµÄÒ»¸öphysical page
-		page_decref(pp);// page_decref()ÄÚ²¿»áfreeÕâ¸öpageÈç¹ûcount==0
+		// å­˜åœ¨è¿™æ ·çš„ä¸€ä¸ªphysical page
+		page_decref(pp);// page_decref()å†…éƒ¨ä¼šfreeè¿™ä¸ªpageå¦‚æœcount==0
 		*pte_store = 0;
 		tlb_invalidate(pgdir, va);
 	}
