@@ -349,41 +349,41 @@ page_init(void)
 	/*
 	 *           page_init时的Physical Memory Layout
 	 *
-	 *			    ~~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
-	 *				|		32-bit		 |
-	 *				|   memory mapped	 | <---BIOS for 32-bit PCI devices
-	 *				|	   devices       |
+	 *			       	 ~~~~~~~~~~~~~~~~~~~~~ 0xffffffff (4Gib)
+	 *				|	32-bit	     |
+	 *				|   memory mapped    | <---BIOS for 32-bit PCI devices
+	 *				|	devices      |
 	 *				/\/\/\/\/\/\/\/\/\/\/\
 	 *
 	 *				/\/\/\/\/\/\/\/\/\/\/\					 
-	 *              |	    Unused		 |
-	 *   			|					 |
-	 *   			+--------------------+ 0x08000000   --+  <-- JOS 256MB limit (depends on amount of RAM)
-	 * 	            |                    |                |		Maximum pages can be allocated up until this point
-	 * 				|  free to allocate  |                |		
-	 * 				|                    |                |
-	 * 				+--------------------+ 0x00157000	  |
-	 * 				|    pages(array)    |	64*PGSIZE	  |
+	 *             			|	 Unused	     |
+	 *   				|		     |
+	 *   				+--------------------+ 0x08000000  --+  <-- JOS 256MB limit (depends on amount of RAM)
+	 * 	                        |                    |		     |    Maximum pages can be allocated up until this point
+	 * 				|  free to allocate  |               |
+	 *				|		     |               |
+	 * 				+--------------------+ 0x00157000    |
+	 * 				|    pages(array)    |	64*PGSIZE    |
 	 * 				+--------------------+ 0x00117000  Extended
-	 *   			|    kern_pgdir	     |	PGSIZE	    Memory
+	 *   				|    kern_pgdir	     |	PGSIZE	    Memory
 	 * 				+--------------------+ 0x00116000     |
 	 * 				|                    |                |
-	 *  			|	    Kernel		 |                |
+	 *  				|      Kernel	     |                |
 	 * 				|                    |                |
-	 *  EXTPHYSMEM 	+--------------------+ 0x00100000   --+
-	 *  			|	   IO hole		 |				  |	
+	 *  		EXTPHYSMEM 	+--------------------+ 0x00100000   --+
+	 *  				|      IO hole	     |	              |	
 	 * 				|                    |                |
-	 *  IOPHYSMEM	+--------------------+ 0x000a0000     |  
-	 *  			|                    |                |	
+	 *  		IOPHYSMEM	+--------------------+ 0x000a0000     |  
+	 *  				|                    |                |	
 	 * 				+--------------------+ 0x00008000     |			  
-	 * 				| APs bootstrap code | PGSIZE		  |
-	 *MPENTRY_PADDR +--------------------+ 0x00007000	  |
-	 *  			|  free to allocate  |				 Base
-	 *  			|					 |			    Memory 
-	 *  			|					 |			      |
-	 *  			+--------------------+ 0x00001000	  |
-	 *  			|	  Preserved		 |	PGSIZE		  |
-	 *  			+--------------------+ 0x00000000   --+
+	 * 				| APs bootstrap code | PGSIZE	      |
+	 *		  MPENTRY_PADDR +--------------------+ 0x00007000     |
+	 *  				|  free to allocate  |		    Base
+	 *  				|      	             |	           Memory 
+	 *  				|		     |		      |
+	 *  				+--------------------+ 0x00001000     |
+	 *  				|     Preserved	     |	PGSIZE	      |
+	 *  				+--------------------+ 0x00000000   --+
 	 *
 	 */
 	//
