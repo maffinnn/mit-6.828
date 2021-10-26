@@ -4,6 +4,6 @@ includes answers for 6 labs.
 
 Solution files contain the detailed notes.
 
-Have pin-pointed many of bugs made when I was doing the labs.
+Have commented on many of bugs made when I was doing the labs.
 
 Learned a lot from this module.
