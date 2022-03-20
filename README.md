@@ -1,9 +1,8 @@
 # MIT-6.828(Operating System Engineering) Lab Report
 
-includes answers for 6 labs.
-
-Solution files contain the detailed notes.
-
-Have commented on many of bugs made when I was doing the labs.
-
-Learned a lot from this module.
+-[x] Lab 1: C, Assembly, Tools, and Bootstrapping 
+-[x] Lab 2: Memory Management
+-[x] Lab 3: User-Level Environments
+-[x] Lab 4: Preemptive Multitasking
+-[x] Lab 5: File System, spawn, and sh
+-[x] Lab 6: Networking
